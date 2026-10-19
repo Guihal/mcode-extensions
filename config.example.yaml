@@ -109,7 +109,7 @@ provider:
       - MiniMax-M3
       - MiniMax-M3.1-Flash
     options:
-  apiKey: REDACTED
+      apiKey: REDACTED
       baseURL: https://agent.minimax.io/mavis/api/v1/llm/v1
 custom_provider:
   minimax-2:
@@ -118,7 +118,7 @@ custom_provider:
     enabled: true
     api: anthropic-messages
     options:
-  apiKey: REDACTED
+      apiKey: REDACTED
       baseURL: https://api.minimax.io/anthropic
       authMode: api-key
     models:
