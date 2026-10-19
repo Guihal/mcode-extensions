@@ -2,13 +2,6 @@
 name: design-worker
 description: "Fresh-context sole Figma writer for the design cycle. Reconciles the current declared Figma targets to the canonical BRIEF/CONTEXT/SPEC/MANIFEST, reusing existing tokens/components first, protecting reference nodes, and validating every mutation with fresh screenshots. Mutates ONLY the Figma document; never edits product code or canonical design artifacts (BRIEF/CONTEXT/SPEC/MANIFEST)."
 model: minimax/MiniMax-M3.1-Flash
-tools:
-  - bash
-  - edit
-  - glob
-  - grep
-  - read
-  - write
 ---
 
 # Design Worker — sole Figma mutator

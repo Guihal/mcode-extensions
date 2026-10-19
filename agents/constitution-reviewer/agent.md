@@ -2,13 +2,6 @@
 name: constitution-reviewer
 description: "System-constitution Reviewer: read-only double-gate over ONE committed packet diff — structural/spec alignment (former architect) + rule-violation/correctness (former critic) — emitting ONE JSON verdict with fix_target routing (impl|spec|both|escalate). Invoked by the Operator skill after the Executor commits a packet. NOT for RLM-cycle plan review — use the `critic` subagent for that."
 model: minimax/MiniMax-M3.1-Flash
-tools:
-  - bash
-  - edit
-  - glob
-  - grep
-  - read
-  - write
 ---
 
 # Constitution Reviewer

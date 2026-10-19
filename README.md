@@ -130,7 +130,25 @@ working directory, so they only start in a Git repository.
 ## Roles
 
 `agents/<name>/agent.md` holds a role contract. Frontmatter accepts `name`, `description`,
-`model`, `tools`, `skills` and `x-mavis`. Roles are dispatched with the `task` tool by name.
+`model`, `effort`, `tools`, `disallowedTools`, `mcpServers`, `skills` and `x-mavis`. Roles are
+dispatched with the `task` tool by name.
+
+`tools` is a strict allowlist matched by exact tool name. A role that lists `read, bash` gets
+exactly those two — nothing else, including MCP tools. There is no wildcard: `mcp__*` matches
+nothing, so MCP tools have to be listed one by one as `mcp__<server>__<tool>`.
+
+Two consequences worth knowing before you write a role:
+
+- **`disallowedTools` does not take effect** for custom agents in `mcode` 0.6.12 — a role with
+  `disallowedTools: [write, edit]` still gets `write` and `edit`. To withhold a tool, leave its
+  name out of `tools`.
+- **Omitting `tools` grants the whole session toolset**, every MCP server included. That is the
+  right choice for most roles here; the read-only roles instead list the 10 built-in tools plus
+  the 120 MCP tools explicitly, so they keep shell, search and browser access but cannot write
+  files.
+
+Two further constraints come from the runtime, not from the frontmatter: a subagent never gets
+`task`, `task_append`, `todowrite` or `ask_user`, and it cannot spawn subagents of its own.
 
 ## License
 

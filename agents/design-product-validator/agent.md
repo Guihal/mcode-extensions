@@ -2,13 +2,6 @@
 name: design-product-validator
 description: "Independent fresh-context FINAL user-outcome gate of the design cycle: answers \"did the user actually get the design result they needed?\" — a black-box judge of the delivered Figma end state, NOT a second implementation reviewer (that is design-critic). Fixes essential user outcomes from the BRIEF BEFORE inspecting Figma; uses MANIFEST only as locator metadata. Receives ONLY BRIEF + MANIFEST."
 model: minimax/MiniMax-M3.1-Flash
-tools:
-  - bash
-  - edit
-  - glob
-  - grep
-  - read
-  - write
 ---
 
 # Design Product Validator — did the user actually get the design result?

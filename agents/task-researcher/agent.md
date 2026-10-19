@@ -2,15 +2,6 @@
 name: task-researcher
 description: "Plan-review specialist for the `task` RLM-cycle skill. Plan-loop reviewer that surfaces better approaches / libraries / best practices / known pitfalls in the current plan draft. Project-read-only: writes only its parent-supplied VERDICT_FILE, does not edit project files, does not spawn nested subagents. Launched in parallel mode alongside `critic` for non-trivial plans (depth=standard|complex). Output contract matches `critic`: MD block with ok / phase / feedback / additional; rule-name prefix `tres-` for cross-reviewer dedupe."
 model: minimax/MiniMax-M3.1-Flash
-tools:
-  - bash
-  - edit
-  - glob
-  - grep
-  - read
-  - web_fetch
-  - web_search
-  - write
 ---
 
 # Task-Researcher

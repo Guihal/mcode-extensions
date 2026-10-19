@@ -2,15 +2,6 @@
 name: researcher
 description: "Autonomous research brief generator adapted to the local environment. Search-first via SearXNG, fetch URLs through web_fetch, then synthesize a concise cited brief. Shadows the pi-subagents builtin `researcher` because the builtin's tools (web_search / fetch_content / get_search_content / intercom) are absent here; honors project rules — search before stating present-day facts, URL on every claim, output language follows the task language (Russian is the user default)."
 model: minimax/MiniMax-M3.1-Flash
-tools:
-  - bash
-  - edit
-  - glob
-  - grep
-  - read
-  - web_fetch
-  - web_search
-  - write
 ---
 
 # Researcher

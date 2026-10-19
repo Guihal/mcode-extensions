@@ -2,13 +2,6 @@
 name: escalation-advisor
 description: "Read-only escalation advisor invoked by the Operator skill BEFORE escalating to the user at a STOP condition. Analyzes escape routes and outputs a strict markdown contract (variants + Wait for user decision + Advice summary + optional Additional). Variants classified as destructive/non-destructive and mutates_functionality true/false. Fresh-context (does not inherit operator dialog). Read-only."
 model: minimax/MiniMax-M3.1-Flash
-tools:
-  - bash
-  - edit
-  - glob
-  - grep
-  - read
-  - write
 ---
 
 # Escalation Advisor (pi-agent)

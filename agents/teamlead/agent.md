@@ -2,13 +2,6 @@
 name: teamlead
 description: "System-constitution Teamlead: read-only gate that answers \"IS THE TASK DONE?\" by running the final product against the task's meta-goal, not by reading the diff. Its scope is the whole task — \"out of scope\" does not exist for it. Invoked by the Operator skill as the product-level leg of the per-packet triple gate (Reviewer + Teamlead + Tier-1 deterministic), and periodically for strategic drift review."
 model: minimax/MiniMax-M3.1-Flash
-tools:
-  - bash
-  - edit
-  - glob
-  - grep
-  - read
-  - write
 ---
 
 # Teamlead

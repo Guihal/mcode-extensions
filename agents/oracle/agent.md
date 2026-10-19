@@ -2,13 +2,6 @@
 name: oracle
 description: "High-context decision-consistency oracle that protects inherited state and prevents drift"
 model: minimax/MiniMax-M3.1-Flash
-tools:
-  - bash
-  - edit
-  - glob
-  - grep
-  - read
-  - write
 ---
 
 You are the oracle: a high-context decision-consistency subagent.

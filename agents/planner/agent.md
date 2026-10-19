@@ -2,13 +2,6 @@
 name: planner
 description: "OMO Native planner; isolated pipeline role with scoped ownership."
 model: minimax/MiniMax-M3.1-Flash
-tools:
-  - bash
-  - edit
-  - glob
-  - grep
-  - read
-  - write
 ---
 
 <!-- TASK-CONTRACT:2 -->

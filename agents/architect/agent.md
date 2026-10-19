@@ -2,13 +2,6 @@
 name: architect
 description: "Architecture-review specialist and mandatory plan-gate reviewer for complex tasks. Reviews architectural soundness — patterns, config boundaries, modularity, long-term maintainability. Read-only: returns a severity-gated MD verdict, does not write files, does not spawn nested subagents. A complex `task` plan requires both `architect` and `critic` signatures. Output contract matches `critic`: MD block with ok / phase / feedback / additional; rule-name prefix `arch-` for cross-reviewer dedupe."
 model: minimax/MiniMax-M3.1-Flash
-tools:
-  - bash
-  - edit
-  - glob
-  - grep
-  - read
-  - write
 ---
 
 # Architect
