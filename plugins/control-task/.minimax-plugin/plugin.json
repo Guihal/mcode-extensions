@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "name": "control-task",
+  "version": "0.1.0",
+  "description": "Durable canonical task anchor for MiniMax Code: stores the whole task per session and re-injects it on every turn, so the task survives compaction and restarts.",
+  "author": "penis",
+  "icon": "icon.png",
+  "category": "Other",
+  "exampleQueries": [],
+  "apps": [],
+  "mcpServers": ["control-task.mcp.json"],
+  "skills": [],
+  "hooks": ["hooks/hooks.json"]
+}

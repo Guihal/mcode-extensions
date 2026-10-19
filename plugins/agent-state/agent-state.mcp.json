@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "mcpServers": {
+    "agent-state": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["./scripts/agent-state.mjs"],
+      "description": "Durable reusable-guide store for MiniMax Code sessions."
+    }
+  }
+}

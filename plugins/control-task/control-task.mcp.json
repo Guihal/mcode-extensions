@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "mcpServers": {
+    "control-task": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["./scripts/control-task.mjs"],
+      "description": "Durable canonical task store for MiniMax Code sessions."
+    }
+  }
+}

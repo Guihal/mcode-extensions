@@ -1,0 +1,36 @@
+# Nothing in this repository is generated or machine-specific, but keep it that way:
+# no credentials, no session state, no logs.
+
+# Runtime state and local scratch
+*.log
+**/logs/
+**/sessions/
+**/state.json
+**/turns.json
+**/engine.log
+**/active.json
+**/.agent-instance-id
+
+# Credentials
+**/.env
+**/.env.*
+**/auth.json
+**/*credentials*.json
+**/secrets/
+**/*.pem
+**/*.key
+**/config.yaml
+
+# Dependencies and build output
+**/node_modules/
+**/coverage/
+**/__pycache__/
+**/*.pyc
+**/dist/
+**/build/
+
+# Editor and OS noise
+.DS_Store
+.idea/
+.vscode/
+*.swp

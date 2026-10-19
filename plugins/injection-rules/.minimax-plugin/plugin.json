@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "name": "injection-rules",
+  "version": "0.1.0",
+  "description": "Standing rules for MiniMax Code: rule bodies at session start, reminder suffixes on their own cadence (every input / every N turns). Rules live in ~/.minimax/rules.",
+  "author": "penis",
+  "icon": "icon.png",
+  "category": "Other",
+  "exampleQueries": [],
+  "apps": [],
+  "mcpServers": [],
+  "skills": [],
+  "hooks": ["hooks/hooks.json"]
+}
