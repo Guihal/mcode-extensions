@@ -150,6 +150,12 @@ Two consequences worth knowing before you write a role:
 Two further constraints come from the runtime, not from the frontmatter: a subagent never gets
 `task`, `task_append`, `todowrite` or `ask_user`, and it cannot spawn subagents of its own.
 
+Known limits of an explicit list: the runtime also exposes MCP servers that are not in
+`mcp.json` — an internal task-management server (`mcp__taskmaster__*`) and a second alias of
+the FigJam bridge (`mcp__figjam-bridge__*`). Those are missing from the read-only roles'
+lists, and the number of reachable MCP tools therefore varies between roughly 99 and 165
+depending on which servers came up in that particular session.
+
 ## License
 
 MIT
