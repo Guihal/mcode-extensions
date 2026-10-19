@@ -1,0 +1,79 @@
+{
+  "mcpServers": {
+    "playwright": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@playwright/mcp@latest",
+        "--isolated"
+      ],
+      "description": "Browser automation and web testing via Playwright."
+    },
+    "web-inspector": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-web-inspector"
+      ],
+      "description": "Live DOM/CSS/geometry/network inspection for web layout diagnosis."
+    },
+    "browser-inspector": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "browser-inspector-mcp"
+      ],
+      "description": "Puppeteer-based browser inspection."
+    },
+    "swatchdog": {
+      "type": "http",
+      "url": "https://swatchdog-connector-970396648818.us-central1.run.app/mcp",
+      "description": "Color/swatch analysis connector."
+    },
+    "computer-use-linux": {
+      "type": "stdio",
+      "command": "<HOME>/.local/bin/codex-computer-use-linux",
+      "args": [
+        "mcp"
+      ],
+      "timeout": 60000,
+      "description": "Linux desktop control: screenshots and input."
+    },
+    "codebase-memory-mcp": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "<HOME>/plugins/codebase-project-graph/scripts/codebase-memory-mcp.mjs"
+      ],
+      "timeout": 60000,
+      "env": {
+        "PROJECT_GRAPH_ALLOWED_ROOT": "<HOME>"
+      },
+      "description": "Code knowledge graph: search, query, trace, architecture."
+    },
+    "figma-bridge": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "<HOME>/.zcode/cli/figma-bridge.mjs"
+      ],
+      "timeout": 60000,
+      "description": "Figma Desktop Bridge: components, variables, styles, screenshots."
+    },
+    "project-graph": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "<HOME>/plugins/codebase-project-graph/scripts/project-graph-mcp.mjs"
+      ],
+      "timeout": 120000,
+      "env": {
+        "PROJECT_GRAPH_ALLOWED_ROOT": "<HOME>"
+      },
+      "description": "Project architecture graph status and refresh."
+    }
+  }
+}

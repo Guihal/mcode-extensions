@@ -1,6 +1,6 @@
 # MiniMax Code extensions
 
-Local plugins, rules, skills, agent roles and the global `AGENTS.md` for
+Local plugins, rules, skills, agent roles, MCP servers and the global `AGENTS.md` for
 [MiniMax Code](https://github.com/MiniMax-AI) (`mcode`).
 
 Everything here is published without secrets, sessions, logs or machine-specific state.
@@ -14,11 +14,14 @@ cp -r mcode-extensions/skills/* ~/.minimax/skills/
 cp -r mcode-extensions/agents/* ~/.minimax/agents/
 cp mcode-extensions/AGENTS.md ~/.minimax/AGENTS.md
 cp mcode-extensions/rules/* ~/.minimax/rules/
+cp mcode-extensions/mcp.example.json ~/.minimax/mcp.json
+sed -i "s#<HOME>#$HOME#g" ~/.minimax/mcp.json   # the template ships <HOME> placeholders
 mcode plugin list --available --marketplace local
 ```
 
 `~/.minimax/plugins` is the local marketplace directory; a plugin listed as `enabled` there is
-loaded on the next session.
+loaded on the next session. MCP servers are read from `~/.minimax/mcp.json` — the file next to
+`config.yaml`, not from the project.
 
 ## Layout
 
@@ -26,11 +29,20 @@ loaded on the next session.
 AGENTS.md              global instructions (system prompt, 32 KiB cap)
 config.example.yaml    sanitized copy of ~/.minimax/config.yaml
 permission.json        global permission rules (v2 format)
+mcp.example.json       template for ~/.minimax/mcp.json
 rules/                 standing rules injected by injection-rules
 skills/task/           task-cycle skill
 agents/<name>/         custom subagent roles
 plugins/<name>/        local plugin packages
 roles-src/             raw role prompts the agents/ dir was generated from
+```
+
+A plugin package looks like this:
+
+```
+plugins/<name>/.minimax-plugin/plugin.json   manifest
+plugins/<name>/hooks/hooks.json               command hooks
+plugins/<name>/scripts/*.mjs                  hook and MCP server implementations
 ```
 
 ## Plugins
@@ -41,7 +53,6 @@ roles-src/             raw role prompts the agents/ dir was generated from
 | `control-task`    | Durable canonical task anchor: `control_task_set` / `control_task_get` over a per-session file store. |
 | `agent-state`     | Reusable guide store: `agent_state_note` and `agent_state_checkpoint` over a per-session file store. |
 | `probe-hook`      | Throwaway probe used to verify that plugin hooks, MCP servers and skills load. Disabled by default.  |
-
 
 ### control-task
 
@@ -76,38 +87,51 @@ Reads rule files from `~/.minimax/rules/` (user rules) and from `rules/` inside 
 
 Global instructions, injected into the system prompt of every session (32 KiB cap).
 
-## Layout
+## Skills
 
-```
-AGENTS.md
-plugins/<name>/.minimax-plugin/plugin.json   manifest
-plugins/<name>/hooks/hooks.json               command hooks
-plugins/<name>/scripts/*.mjs                  hook and MCP server implementations
-```
+| Skill  | Purpose                                                                       |
+| ------ | ----------------------------------------------------------------------------- |
+| `task` | Task cycle: crystal → plan → critic gate → implementation → implementation-critic gate → acceptance. |
 
-## License
+The cycle has no machine gates: no preplan chain, no quorum, no crystal reviewer. The critic
+repairs the plan, the implementation-critic repairs the code, and the product-validator judges
+without repairing.
 
-MIT
+## MCP servers
 
-## Rules
+User-level MCP servers live in `~/.minimax/mcp.json` — the file next to `config.yaml`, not in the
+project. `mcp.example.json` in this repository is the template: copy it, replace `<HOME>` with your
+home directory, and fix the paths that are specific to your machine.
 
-Standing rules live in `rules/` as JSON files. A rule is injected at session start
-(`send_on_start: true`) and re-injected on its own cadence:
+| Server                | Transport | What it does                                                      |
+| --------------------- | --------- | ----------------------------------------------------------------- |
+| `playwright`          | stdio     | Browser automation and web testing via Playwright.                 |
+| `web-inspector`       | stdio     | Live DOM/CSS/geometry/network inspection for layout diagnosis.    |
+| `browser-inspector`   | stdio     | Puppeteer-based browser inspection.                               |
+| `swatchdog`           | http      | Color/swatch analysis connector.                                  |
+| `computer-use-linux`  | stdio     | Linux desktop control: screenshots and input.                     |
+| `codebase-memory-mcp` | stdio     | Code knowledge graph: search, query, trace, architecture.         |
+| `figma-bridge`        | stdio     | Figma Desktop Bridge: components, variables, styles, screenshots. |
+| `project-graph`       | stdio     | Project architecture graph status and refresh.                    |
 
-```json
-{
-  "name": "70-my-rule",
-  "apply": ["*"],
-  "send_on_start": false,
-  "body": "short pointer shown at session start",
-  "remind": { "every_n_turns": 3, "suffix": "full text re-injected every 3 turns" }
-}
-```
+Two things bite when porting a config from another agent runtime:
+
+- **`timeout` is in milliseconds.** A value of `60` is 60 ms, not one minute, and the server's
+  `tools/list` is cut off before it answers — the server then shows up with zero tools. Use
+  `60000` for a minute.
+- **`toolExposure` is not a supported field.** An unknown field makes the whole server entry fail
+  validation and it is dropped. `mcp` accepts `type`, `command`, `args`, `env`, `description`,
+  `timeout` and `tools` for stdio, plus `type`, `url`, `headers`, `description`, `timeout` and
+  `tools` for http.
+
+The `codebase-memory-mcp` and `project-graph` servers resolve their project root from the current
+working directory, so they only start in a Git repository.
 
 ## Roles
 
 `agents/<name>/agent.md` holds a role contract. Frontmatter accepts `name`, `description`,
 `model`, `tools`, `skills` and `x-mavis`. Roles are dispatched with the `task` tool by name.
 
-The task cycle has no machine gates: the critic repairs the plan, the implementation-critic
-repairs the code, and the product-validator judges without repairing.
+## License
+
+MIT
