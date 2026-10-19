@@ -1,0 +1,15 @@
+{
+  "name": "73-tests-not-proof",
+  "apply": ["*"],
+  "_tier": "T1",
+  "_derives": "user instruction 2026-10-11: tests are not proof of work; proof is product behavior + logs",
+  "_core": ["tests", "proof", "behavior", "logs"],
+  "send_on_start": false,
+  "send_on_subagent": false,
+  "body": "[73-tests-not-proof] Passing tests/typecheck/build are signals, not proof the product works; proof is observed runtime behavior plus relevant logs.",
+  "remind": {
+    "every_n_turns": 9,
+    "suffix": "[Tests are not proof of a working product]\n\nPassing tests, typecheck, build or lint prove only those signals; they do NOT establish that the product works. Proof of work is observed real runtime behavior plus the relevant logs.\nExercise the actual scenario, inspect its observable result and the corresponding logs, and report the conditions and any unverified behavior. A test name, assertion count or green suite proves no untested property.\nWhen a requirement-backed behavior matters, verify it through direct runtime probes and logs, not by trusting the test that claims to cover it; one passing check never establishes full related coverage."
+  },
+  "_comment": "Authored rule (not a port). Cadence 9 chosen between reasoning-poison(5) and user-intent(13): a frequently-relevant correctness discipline."
+}

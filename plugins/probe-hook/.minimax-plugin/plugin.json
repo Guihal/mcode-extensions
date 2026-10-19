@@ -1,0 +1,14 @@
+{
+  "schemaVersion": 1,
+  "name": "probe-hook",
+  "version": "0.0.1",
+  "description": "Throwaway probe plugin: verifies that a local plugin hook runs and its additionalContext is assembled.",
+  "author": "local-probe",
+  "icon": "icon.png",
+  "category": "Other",
+  "exampleQueries": [],
+  "apps": [],
+  "mcpServers": ["probe.mcp.json"],
+  "skills": ["skills/probe-skill/SKILL.md"],
+  "hooks": ["hooks/hooks.json"]
+}

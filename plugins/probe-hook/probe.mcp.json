@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "mcpServers": {
+    "probe": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["./scripts/mcp-probe.mjs"],
+      "env": {
+        "PROBE_LITERAL": "literal-ok",
+        "PROBE_EXPANDED": "${PLUGIN_DATA}"
+      },
+      "description": "Probe MCP server used to verify the plugin MCP lane."
+    }
+  }
+}

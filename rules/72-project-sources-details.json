@@ -1,0 +1,20 @@
+{
+  "name": "72-project-sources-details",
+  "apply": [
+    "*"
+  ],
+  "_tier": "T1",
+  "_derives": "ported verbatim from zcode reasoning-poison@personal reminder-text.mjs",
+  "_core": [
+    "reminder",
+    "cadence:17"
+  ],
+  "send_on_start": false,
+  "send_on_subagent": false,
+  "body": "[72-project-sources-details] At task entry or new area, discover governing instructions, project sources and applicable skills before substantive work.\nFull standing text is delivered periodically via remind.suffix (send_on_start:false); the constant copy already lives in project AGENTS.md startup context.",
+  "remind": {
+    "every_n_turns": 17,
+    "suffix": "[Project sources — details reminder]\n\nAt task entry or before substantive work in new area, discover governing instructions, project sources and applicable skills. Read needed content, conditions, exceptions and decisive truncated material. Scope/obligations established → proceed. Reopen only what new work, changed instructions or contrary evidence makes relevant.\n"
+  },
+  "_comment": "Cadence mirrors zcode hook: this reminder fires every N events (N=17). Text is byte-faithful to its source export."
+}

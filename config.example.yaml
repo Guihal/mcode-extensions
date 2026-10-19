@@ -1,0 +1,154 @@
+logLevel: info
+defaultModel: minimax/MiniMax-M3.1-Flash
+dataContribution:
+  enabled: true
+memory:
+  enabled: false
+skipWindowsHardSafetyChecks: true
+skipParentDeathGuard: true
+minimax_api:
+  apiKey: REDACTED
+minimaxModelSource: token_plan
+provider:
+  minimax:
+    name: MiniMax
+    npm: "@ai-sdk/anthropic"
+    models:
+      MiniMax-M3:
+        name: M3
+        attachment: true
+        reasoning: true
+        temperature: true
+        tool_call: true
+        limit:
+          context: 512000
+          output: 128000
+        modalities:
+          input:
+            - text
+            - image
+            - video
+          output:
+            - text
+        options:
+          reasoningSummary: auto
+        variants:
+          none-thinking:
+            thinking:
+              type: disabled
+          thinking:
+            thinking:
+              type: adaptive
+        thinking_config:
+          mode: switchable
+          default_value: "true"
+        capabilities:
+          files_api_upload_endpoint: /v1/files/upload
+          max_attachments_count: 9
+          max_image_bytes_inline: 10485760
+          max_request_body_bytes: 67108864
+          max_video_bytes_inline: 52428800
+          support_files_api: true
+        contextWindowOptions:
+          - 512000
+          - 1000000
+        contextWindowOptionHints:
+          "1000000": higher_usage
+      MiniMax-M3.1-Flash:
+        name: M3.1-Flash
+        attachment: true
+        reasoning: true
+        temperature: true
+        tool_call: true
+        limit:
+          context: 512000
+          output: 128000
+        modalities:
+          input:
+            - text
+            - image
+            - video
+          output:
+            - text
+        options:
+          reasoningSummary: auto
+        variants:
+          none-thinking:
+            thinking:
+              type: disabled
+          thinking:
+            thinking:
+              type: adaptive
+        thinking_config:
+          mode: forced_on
+        capabilities:
+          files_api_upload_endpoint: /v1/files/upload
+          max_attachments_count: 4
+          max_image_bytes_inline: 10485760
+          max_request_body_bytes: 67108864
+          max_video_bytes_inline: 52428800
+          support_files_api: true
+        contextWindowOptions:
+          - 512000
+          - 1000000
+        contextWindowOptionHints:
+          "1000000": higher_usage
+        thinking:
+          effortOptions:
+            - default
+            - low
+            - medium
+            - high
+            - xhigh
+            - max
+          defaultEffort: default
+    model_order:
+      - MiniMax-M3.1-Flash
+      - MiniMax-M3
+    whitelist:
+      - MiniMax-M3
+      - MiniMax-M3.1-Flash
+    options:
+  apiKey: REDACTED
+      baseURL: https://agent.minimax.io/mavis/api/v1/llm/v1
+custom_provider:
+  minimax-2:
+    name: minimax
+    kind: custom
+    enabled: true
+    api: anthropic-messages
+    options:
+  apiKey: REDACTED
+      baseURL: https://api.minimax.io/anthropic
+      authMode: api-key
+    models:
+      MiniMax-M3.1-Flash-Preview:
+        reasoning: true
+        thinking_config:
+          mode: switchable
+          default_value: "true"
+      MiniMax-M3.1-Flash:
+        reasoning: true
+        thinking_config:
+          mode: switchable
+          default_value: "true"
+defaultModelContextWindow: 512000
+defaultModelThinking:
+  effort: default
+defaultModelVariant: thinking
+permissionMode: bypassPermissions
+permission:
+  policyOwner: engine
+  storageWriteVersion: 2
+  classifierTimeoutMs: 60000
+  userConfirmationEnabled: false
+  nativeDelete: true
+sandbox:
+  enabled: false
+  filesystem:
+    policy:
+      mode: full_access
+  network:
+    policy:
+      mode: allow_all
+  localAccess: open

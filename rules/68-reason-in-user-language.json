@@ -1,0 +1,12 @@
+{
+  "name": "68-reason-in-user-language",
+  "apply": ["*", "!intent-auditor"],
+  "_tier": "T1",
+  "_derives": "user tuning session 2026-10-10: stop glossing non-English input inside reasoning; reason in the user's language",
+  "_core": ["reasoning", "no gloss", "user language"],
+  "body": "[68-reason-in-user-language] DO NOT TRANSLATE OR PARAPHRASE THE USER'S MESSAGE INSIDE YOUR REASONING.\nYou understand non-English input directly; a multilingual model needs no separate translation pass, and restating the message costs thinking tokens for zero comprehension gain.\nREASON IN THE USER'S LANGUAGE when they write non-English (Russian in -> Russian reasoning). This removes the cross-language step that spawns the gloss habit at its root, instead of policing it after the fact.\nEnglish reasoning is allowed only where it is genuinely shorter or more precise (code identifiers, external API terms); even then NEVER open the thinking block by restating or translating the last user message - start directly on the task.\nFOCUS ON THE TASK, NOT ON MIRRORING THE INPUT: think about what to do next, not about what the user just said in another language.\nHONESTY GUARD: do not claim 'the check passed' while the same block still opens with a gloss - read the actual first line, not your intent.\nBOUNDARIES: 17-user-correction-rebase reads the meaning of a turn as a minimal semantic patch; here is specifically about NOT spending tokens translating that turn inside reasoning.",
+  "remind": {
+    "every_n_turns": 120,
+    "suffix": "\n\n[68-reason-in-user-language] Don't gloss the user's message in reasoning - no translation/paraphrase line for their last turn. Reason in their language (Russian in -> Russian thought), or in English only for code/API terms and never starting with a restatement of the input. Think about the task, not about mirroring what they said."
+  }
+}

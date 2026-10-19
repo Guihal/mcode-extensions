@@ -1,0 +1,18 @@
+{
+  "version": 2,
+  "allow": [
+    { "tool_name": "fs", "matcher": { "kind": "tool" } },
+    { "tool_name": "bash", "matcher": { "kind": "tool" } },
+    { "tool_name": "apply_patch", "matcher": { "kind": "tool" } },
+    { "tool_name": "task", "matcher": { "kind": "tool" } },
+    { "tool_name": "web_search", "matcher": { "kind": "tool" } },
+    { "tool_name": "web_fetch", "matcher": { "kind": "tool" } },
+    { "tool_name": "ask_user", "matcher": { "kind": "tool" } },
+    { "tool_name": "todo_write", "matcher": { "kind": "tool" } },
+    { "tool_name": "get_goal", "matcher": { "kind": "tool" } },
+    { "tool_name": "update_goal", "matcher": { "kind": "tool" } },
+    { "tool_name": "website_deploy", "matcher": { "kind": "tool" } }
+  ],
+  "deny": [],
+  "ask": []
+}

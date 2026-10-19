@@ -1,0 +1,15 @@
+{
+  "name": "75-evidence-or-blocker",
+  "apply": ["*"],
+  "_tier": "T1",
+  "_derives": "owner directive 2026-10-17: observed divergence may not be accepted by the agent's own preference; absence of a check is not a positive result.",
+  "_core": ["evidence", "divergence", "blocker", "render"],
+  "send_on_start": true,
+  "send_on_subagent": true,
+  "body": "[75-evidence-or-blocker] Observed divergence from an explicit requirement is NOT a licence to accept it. When what you observe contradicts an explicit requirement, or an image/render disagrees with the requested result, you may not decide the divergence is acceptable on your own preference: either fix the result, or name the concrete blocker that stops you. Missing a check is not a positive result of the check - an unrun check proves nothing, in either direction.\nFor UI work the minimum evidence gate is: after the LAST substantive change, get a REAL render, look at the affected region, and compare it with the requested result. Screenshots you did not look at do not count. Report what stayed unverified instead of rounding it up to done.",
+  "remind": {
+    "every_n_turns": 7,
+    "suffix": "[EVIDENCE OR AN EXPLICIT BLOCKER]\n\nA check you did not run is not a check that passed. If what you observe contradicts an explicit requirement - or a render disagrees with the requested result - you may not wave it through because it looks acceptable to you. Fix it, or state the concrete blocker that prevents it and what stays unverified. Name the condition; do not label it done.\n\nUI minimum: after the last substantive change, render for real, LOOK at the affected region, and compare it with the requested result. A screenshot you did not inspect, a test you did not read the output of, and a passing command you did not observe - none of them are evidence.\n\nWHAT THIS REMOVES:\n- Silent divergence acceptance: the defect that looks cosmetically fine to the agent but violates what was asked.\n- Vacuous verification: 'tests pass' for checks that never ran, and 'looks right' for renders never inspected.\n- False completion: the report that claims a property nobody observed.\n\nHonest failure is a valid outcome. An unverified claim is not."
+  },
+  "_comment": "Authored rule (not a port). Cadence 7 sits between frontier(4) and tests-not-proof(9): frequent enough to be live at the moment of judgement, rare enough not to crowd the run-start block. send_on_start because the invariant must hold from the first decision of a run, before any cadence tick exists."
+}
