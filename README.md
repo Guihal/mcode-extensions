@@ -137,24 +137,30 @@ dispatched with the `task` tool by name.
 exactly those two — nothing else, including MCP tools. There is no wildcard: `mcp__*` matches
 nothing, so MCP tools have to be listed one by one as `mcp__<server>__<tool>`.
 
-Two consequences worth knowing before you write a role:
+Two things worth knowing before you write a role:
 
 - **`disallowedTools` does not take effect** for custom agents in `mcode` 0.6.12 — a role with
   `disallowedTools: [write, edit]` still gets `write` and `edit`. To withhold a tool, leave its
   name out of `tools`.
-- **Omitting `tools` grants the whole session toolset**, every MCP server included. That is the
-  right choice for most roles here; the read-only roles instead list the 10 built-in tools plus
-  the 120 MCP tools explicitly, so they keep shell, search and browser access but cannot write
-  files.
+- **Omitting `tools` grants the whole session toolset**, but the runtime defers configured (MCP)
+  tools behind its tool-search once their combined schema grows, so a role without an explicit
+  list sees a subset of the MCP tools. Every role here therefore carries an explicit list: the
+  13 built-ins plus all 120 MCP tools.
+
+The read-only roles (`auditor`, `delegate`, `design-critic`, `design-verifier`,
+`evidence-auditor`) leave `write` and `edit` out of that list, so they keep read, search, shell
+and full MCP access but cannot change files. `scout`, `preplan-auditor` and `product-validator`
+add `write` and keep `edit` out, preserving their original omo tool sets. Everything else lists
+all 13 built-ins.
 
 Two further constraints come from the runtime, not from the frontmatter: a subagent never gets
 `task`, `task_append`, `todowrite` or `ask_user`, and it cannot spawn subagents of its own.
 
 Known limits of an explicit list: the runtime also exposes MCP servers that are not in
 `mcp.json` — an internal task-management server (`mcp__taskmaster__*`) and a second alias of
-the FigJam bridge (`mcp__figjam-bridge__*`). Those are missing from the read-only roles'
-lists, and the number of reachable MCP tools therefore varies between roughly 99 and 165
-depending on which servers came up in that particular session.
+the FigJam bridge (`mcp__figjam-bridge__*`). Those are missing from the lists, and the number of
+reachable MCP tools therefore varies between roughly 99 and 165 depending on which servers came
+up in that particular session.
 
 ## License
 
