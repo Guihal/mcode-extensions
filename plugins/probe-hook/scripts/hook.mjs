@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 import { join } from 'node:path';
 import { readHookPayload, resolveHookIdentity, emitHookResult } from './runtime/host.mjs';
 import { appendBoundedLog, boundedDiagnostic, diagnosticRecord } from './runtime/storage.mjs';

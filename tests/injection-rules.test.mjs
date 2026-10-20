@@ -8,6 +8,7 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { bunBinary } from './helpers/runtime-fixture.mjs';
 
 const repo = dirname(dirname(fileURLToPath(import.meta.url)));
 const plugin = join(repo, 'plugins', 'injection-rules');
@@ -31,20 +32,14 @@ function fixture(t, rules = []) {
   cpSync(plugin, pluginRoot, { recursive: true });
   mkdirSync(join(pluginRoot, 'rules'), { recursive: true });
   mkdirSync(userRules, { recursive: true });
-  // Isolate os.homedir() in the test subprocess; never change a real user directory.
-  const preload = join(root, 'user-directory.cjs');
-  writeFileSync(preload, [
-    "require('node:os').homedir = () => process.env.INJECTION_RULES_TEST_USER_DIRECTORY;",
-    "require('node:module').syncBuiltinESMExports();",
-  ].join('\n'));
+  // Bun resolves homedir from this isolated child environment.
   const env = {
-    ...process.env,
+    PATH: `${dirname(bunBinary)}:/usr/bin:/bin`,
+    HOME: userDirectory,
+    LANG: 'C.UTF-8',
     PLUGIN_ROOT: pluginRoot,
     PLUGIN_DATA: data,
-    INJECTION_RULES_TEST_USER_DIRECTORY: userDirectory,
-    NODE_OPTIONS: `--require=${preload}`,
   };
-  delete env.MINIMAX_AGENT_NAME;
   const put = (value, directory = join(pluginRoot, 'rules'), file = `${value.name}.json`) => {
     writeFileSync(join(directory, file), JSON.stringify(value));
   };

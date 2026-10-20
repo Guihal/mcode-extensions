@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // MCP has no trusted calling session. It validates and issues a pending receipt;
 // the registered native PostToolUse hook owns every session read and mutation.
 import { serveMcp } from './runtime/transport.mjs';

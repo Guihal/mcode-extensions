@@ -9,7 +9,7 @@ import {
 } from './helpers/runtime-fixture.mjs';
 
 const pluginNames = ['agent-state', 'control-task', 'injection-rules', 'probe-hook'];
-const runtimeModules = ['host.mjs', 'storage.mjs', 'transport.mjs'];
+const runtimeModules = ['host.mjs', 'storage.mjs', 'transport.mjs', 'directory.mjs'];
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');
 const readJson = path => JSON.parse(fs.readFileSync(path, 'utf8'));
 
@@ -26,7 +26,7 @@ function hookScript(root, manifest, event) {
   assert.equal(handlers.length, 1, `one packaged ${event} entrypoint`);
   assert.equal(handlers[0].type, 'command');
   assert.equal(handlers[0].timeout, 5);
-  const match = /^node "\$\{PLUGIN_ROOT\}\/(scripts\/[^"\s]+\.mjs)"$/.exec(handlers[0].command);
+  const match = /^bun "\$\{PLUGIN_ROOT\}\/(scripts\/[^"\s]+\.mjs)"$/.exec(handlers[0].command);
   assert.ok(match, 'the declared native command must resolve entirely inside this package');
   return inside(root, match[1]);
 }
@@ -67,12 +67,7 @@ for (const plugin of pluginNames) test(`standalone copied ${plugin} resolves its
   const root = join(fixture.root, 'installed-package');
   fs.cpSync(join(repositoryRoot, 'plugins', plugin), root, { recursive: true });
   fixture.env.PLUGIN_ROOT = root;
-  // The legacy rule reader calls os.homedir(). Pin it to this fixture so no
-  // actual user rule directory participates in a standalone-package check.
-  const preload = join(fixture.root, 'isolated-home.cjs');
-  fs.writeFileSync(preload, "require('node:os').homedir=()=>process.env.MCODE_FIXTURE_HOME;require('node:module').syncBuiltinESMExports();\n");
-  fixture.env.MCODE_FIXTURE_HOME = fixture.env.HOME;
-  fixture.env.NODE_OPTIONS = `--require=${preload}`;
+  // The child's HOME keeps user-rule lookup inside this copied-package fixture.
   fs.mkdirSync(join(fixture.env.HOME, '.minimax/rules'), { recursive: true });
   fs.cpSync(join(repositoryRoot, 'rules'), join(fixture.env.HOME, '.minimax/rules'), { recursive: true });
   const manifest = readJson(join(root, '.minimax-plugin/plugin.json'));
@@ -86,7 +81,7 @@ for (const plugin of pluginNames) test(`standalone copied ${plugin} resolves its
     assert.equal(config.schemaVersion, 1);
     assert.equal(Object.keys(config.mcpServers).length, 1);
     const [serverName, server] = Object.entries(config.mcpServers)[0];
-    assert.equal(server.type, 'stdio'); assert.equal(server.command, 'node');
+    assert.equal(server.type, 'stdio'); assert.equal(server.command, 'bun');
     assert.equal(server.args.length, 1);
     const script = inside(root, server.args[0]);
     operation = plugin === 'control-task' ? 'control_task_set' : plugin === 'agent-state' ? 'agent_state_note' : 'probe_echo';

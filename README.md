@@ -7,12 +7,19 @@ Everything here is published without secrets, sessions, logs or machine-specific
 
 ## Install or upgrade
 
-The existing ports target **MiniMax Code 0.6.12 on Linux**, with util-linux
-`/usr/bin/flock` and the host-supported Node range `>=22.19 <23 || >=24 <27`.
-Development checks have run on Node 22.23.3 and 24.19.0. The plugins need no npm
-install of their own. Check the Node binary that the host will find on `PATH`:
+The extensions execute with **Bun 1.4.3**, pinned in [`.bun-version`](.bun-version),
+on **Linux x64 with glibc**, procfs and util-linux `/usr/bin/flock`. Install that
+version using the [official Bun instructions](https://bun.sh/docs/installation).
+The `bun` executable must be on the `PATH` inherited by MiniMax's hook and MCP
+processes. The plugins need no package installation of their own.
+
+The inspected **MiniMax Code 0.6.12 CLI itself declares Node**
+`>=22.19 <23 || >=24 <27`. Its published launcher remains separate from these
+Bun extension processes. The offline integration checks exercise Node 22.23.3
+and 24.19.0 hosts launching Bun plugins. Check both executables:
 
 ```sh
+bun --version
 node --version
 /usr/bin/flock --version
 ```
@@ -38,7 +45,8 @@ modified rules and instructions against the backup after an upgrade.
   mcode_rules_dir="$HOME/.minimax/rules"
   mcode_backup_dir="$mcode_data_dir/extension-backups/$(date -u +%Y%m%dT%H%M%SZ)-$$"
 
-  node scripts/sync-plugin-runtime.mjs --check
+  test "$(bun --version)" = "$(cat .bun-version)"
+  bun scripts/sync-plugin-runtime.mjs --check
   /usr/bin/flock --version
   mkdir -p "$mcode_backup_dir" "$mcode_data_dir/plugins" \
     "$mcode_data_dir/skills" "$mcode_data_dir/agents" "$mcode_rules_dir"
@@ -87,7 +95,7 @@ credentials, not an upgrade replacement for your working configuration.
 
 <!-- fresh-mcp-config -->
 ```sh
-MCODE_INSTALL_DATA_DIR="${MINIMAX_DATA_DIR:-$HOME/.minimax}" node --input-type=module <<'NODE'
+MCODE_INSTALL_DATA_DIR="${MINIMAX_DATA_DIR:-$HOME/.minimax}" bun - <<'BUN'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
@@ -97,7 +105,7 @@ const rendered = JSON.stringify(template, (_key, value) =>
   typeof value === 'string' ? value.replaceAll('<HOME>', homedir()) : value, 2);
 mkdirSync(directory, { recursive: true });
 writeFileSync(join(directory, 'mcp.json'), rendered + '\n', { flag: 'wx', mode: 0o600 });
-NODE
+BUN
 ```
 
 ## Layout
@@ -112,7 +120,7 @@ skills/task/           task-cycle skill
 agents/<name>/         custom subagent roles
 plugins/<name>/        complete local plugin packages
 runtime/              canonical shared boundary/storage modules
-scripts/              deterministic runtime-copy synchronization
+scripts/              runtime-copy synchronization and isolated Bun test runner
 tests/                ordinary and opt-in native-host checks
 docs/                 contracts and evidence boundaries
 roles-src/             raw role prompts the agents/ dir was generated from
@@ -318,27 +326,29 @@ add its missing event registrations.
 Run every ordinary extension check and generated-copy parity check:
 
 ```sh
-node scripts/sync-plugin-runtime.mjs --check
-node --test tests/*.test.mjs
+bun scripts/sync-plugin-runtime.mjs --check
+bun scripts/test.mjs
 ```
 
-The ordinary suite uses isolated state, actual plugin entrypoint subprocesses,
-and constructed hook/session fixtures. CI runs it on Node 22 and 24 without
-installing plugin dependencies. The two native-host files are opt-in and are
-reported as skipped when their package fixture is absent; those skips are not
-native integration evidence.
+The ordinary suite runs each file in a separate Bun process, using isolated
+state, actual Bun plugin entrypoint subprocesses and constructed hook/session
+fixtures. CI installs the pinned Bun and runs this same command. The runner
+lists the two native-host files separately; an ordinary pass does not claim
+native integration coverage.
 
 With an unpacked, unmodified `@minimax-ai/code@0.6.12` package and its dependencies
 already available, run the separate offline host checks:
 
 ```sh
 MCODE_HOST_PACKAGE=/absolute/path/to/minimax-code-0.6.12/package \
+  MCODE_BUN_BINARY="$(command -v bun)" \
   node --test tests/mcode-host-contract.test.mjs tests/mcode-ports-host.test.mjs
 ```
 
 Those tests checksum the published host, use its original parser, lifecycle,
-package materializer, MCP adapter and role capability assembler, and inspect
-returned context and isolated durable data. They call no model/provider API.
+package materializer, MCP adapter and role capability assembler. They inspect
+actual Bun child executables/runtime metadata, returned context and isolated
+durable data. They call no model/provider API.
 See [the port contract](docs/existing-ports-contract.md#verification) and
 [the earlier rule review](docs/reasoning-rules-review.md) for the evidence limits.
 

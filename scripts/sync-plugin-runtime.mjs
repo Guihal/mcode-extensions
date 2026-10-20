@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // Deterministic per-package copies: native installation has no sibling root.
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -6,9 +6,9 @@ import { fileURLToPath } from 'node:url';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const plugins = ['control-task', 'agent-state', 'probe-hook'];
-const modules = ['transport.mjs', 'host.mjs', 'storage.mjs'];
+const modules = ['transport.mjs', 'host.mjs', 'storage.mjs', 'directory.mjs'];
 if (process.argv.slice(2).some(argument => argument !== '--check')) {
-  process.stderr.write('Usage: node scripts/sync-plugin-runtime.mjs [--check]\n');
+  process.stderr.write('Usage: bun scripts/sync-plugin-runtime.mjs [--check]\n');
   process.exitCode = 2;
 } else {
   let stale = 0;

@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 import { join } from 'node:path';
 import { serveMcp, isPlainObject } from './runtime/transport.mjs';
 import { resolvePluginDataRoot } from './runtime/host.mjs';
@@ -20,7 +20,7 @@ function validateCall(name, args) {
 
 await boundedDiagnostic(`PROBE_CONFIG_${config.status.toUpperCase()}`, { plugin: 'probe-hook', location: config.path });
 
-await serveMcp({ serverInfo: { name: 'probe-mcp', version: '0.1.0' }, tools, validateCall,
+await serveMcp({ serverInfo: { name: 'probe-mcp', version: '0.1.1' }, tools, validateCall,
   async handleCall(name, args) {
     if (!config.enabled) return { content: [{ type: 'text', text: `PROBE-MCP-DISABLED: packaged configuration status=${config.status}. No diagnostic storage was attempted.` }],
       structuredContent: { status: 'disabled', configuration: config.status } };

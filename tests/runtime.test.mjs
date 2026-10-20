@@ -19,6 +19,133 @@ import { makeFixture, repositoryRoot, runScript, runMcp, postToolPayload, writeN
 const probeScript = join(repositoryRoot, 'plugins/probe-hook/scripts/mcp-probe.mjs');
 const initialize = { jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18' } };
 
+async function directoryProbe(t, body) {
+  const fixture = makeFixture(t, 'probe-hook');
+  const script = join(fixture.root, 'directory-probe.mjs');
+  const moduleUrl = name => JSON.stringify(pathToFileURL(join(repositoryRoot, 'runtime', name)).href);
+  fs.writeFileSync(script, `import assert from 'node:assert/strict';
+    import fs from 'node:fs';
+    import {join} from 'node:path';
+    import {createRequire} from 'node:module';
+    import {Readable, PassThrough} from 'node:stream';
+    import {iterateDirectory} from ${moduleUrl('directory.mjs')};
+    import {listDirectory} from ${moduleUrl('storage.mjs')};
+    import {serveMcp} from ${moduleUrl('transport.mjs')};
+    const ffi=createRequire(import.meta.url)('bun:ffi');
+    const root=${JSON.stringify(fixture.root)};
+    const directory=join(root,'directory');fs.mkdirSync(directory);
+    const descriptorCount=()=>fs.readdirSync('/proc/self/fd').length;
+    ${body}
+  `);
+  const result = await runScript(script, '', { env: fixture.env, timeout: 30000 });
+  assert.equal(result.code, 0, result.stderr);
+  assert.equal(result.stderr, '');
+  return JSON.parse(result.stdout);
+}
+
+test('native directory iteration honors zero/exact/overflow bounds and closes on early exits', async t => {
+  const result = await directoryProbe(t, `
+    const calls={opendir:0,readdir64:0,closedir:0};
+    const original=ffi.dlopen;
+    ffi.dlopen=(...args)=>{
+      const library=original(...args);
+      for(const name of Object.keys(calls)) {
+        const call=library.symbols[name];
+        library.symbols[name]=(...values)=>{calls[name]++;return call(...values);};
+      }
+      return library;
+    };
+    const reset=()=>{for(const name of Object.keys(calls))calls[name]=0;};
+    assert.deepEqual(listDirectory(directory,0),[]);
+    assert.equal(calls.opendir,1);assert.equal(calls.closedir,1);
+    fs.writeFileSync(join(directory,'file'),'body');fs.mkdirSync(join(directory,'folder'));
+    fs.symlinkSync('folder',join(directory,'link'));fs.writeFileSync(join(directory,'😀.md'),'unicode');
+    const exact=listDirectory(directory,4);
+    assert.deepEqual(exact.map(entry=>entry.name).sort(),['file','folder','link','😀.md'].sort());
+    assert.equal(exact.find(entry=>entry.name==='folder').isDirectory(),true);
+    assert.equal(exact.find(entry=>entry.name==='file').isFile(),true);
+    assert.equal(exact.find(entry=>entry.name==='link').isSymbolicLink(),true);
+    assert.equal(exact.find(entry=>entry.name==='link').isDirectory(),false);
+    const large=join(root,'large');fs.mkdirSync(large);
+    for(let i=0;i<5000;i++)fs.linkSync(join(directory,'file'),join(large,'entry-'+i));
+    const before=descriptorCount();
+    const observations=[];
+    for(const limit of [0,2,4096]) {
+      reset();
+      assert.throws(()=>listDirectory(large,limit),error=>error.code==='DIRECTORY_LIMIT');
+      assert.equal(calls.opendir,1);assert.equal(calls.closedir,1);
+      assert.ok(calls.readdir64>=limit+1&&calls.readdir64<=limit+3);
+      observations.push({limit,...calls});
+    }
+    reset();for(const entry of iterateDirectory(large)){assert.match(entry.name,/^entry-/);break;}
+    assert.equal(calls.closedir,1);assert.ok(calls.readdir64<=3);
+    const marker=new Error('consumer failure');
+    reset();assert.throws(()=>{for(const entry of iterateDirectory(large))throw marker;},error=>error===marker);
+    assert.equal(calls.closedir,1);
+    assert.equal(descriptorCount(),before);
+    const pinned=fs.openSync(directory,fs.constants.O_RDONLY|fs.constants.O_DIRECTORY|fs.constants.O_NOFOLLOW);
+    try {
+      fs.renameSync(directory,join(root,'moved'));fs.symlinkSync(large,directory);
+      assert.throws(()=>listDirectory(directory),error=>error.code==='UNSAFE_DIRECTORY');
+      assert.deepEqual([...iterateDirectory('/proc/self/fd/'+pinned)].map(entry=>entry.name).sort(),exact.map(entry=>entry.name).sort());
+    } finally {fs.closeSync(pinned);}
+    console.log(JSON.stringify({observations,descriptorsBefore:before,descriptorsAfter:descriptorCount()}));
+  `);
+  assert.deepEqual(result.observations.map(item => item.limit), [0, 2, 4096]);
+  assert.equal(result.descriptorsAfter, result.descriptorsBefore);
+});
+
+test('native directory errors preserve errno and release the stream before later operations', async t => {
+  const result = await directoryProbe(t, `
+    const original=ffi.dlopen;
+    let invalidate=true,closes=0;
+    ffi.dlopen=(path,symbols)=>{
+      const library=original(path,{...symbols,dirfd:{args:['ptr'],returns:'i32'}});
+      const read=library.symbols.readdir64,close=library.symbols.closedir;
+      library.symbols.readdir64=directory=>{
+        // Invalidate the real descriptor once; the actual libc read returns EBADF.
+        if(invalidate){invalidate=false;fs.closeSync(library.symbols.dirfd(directory));}
+        return read(directory);
+      };
+      library.symbols.closedir=directory=>{closes++;return close(directory);};
+      return library;
+    };
+    const before=descriptorCount();
+    assert.throws(()=>listDirectory(directory),error=>error.code==='DIRECTORY_UNAVAILABLE'&&error.systemCode==='EBADF'&&error.cause.syscall==='readdir64');
+    assert.equal(closes,1);
+    assert.deepEqual(listDirectory(directory,0),[]);
+    assert.equal(closes,2);
+    assert.throws(()=>[...iterateDirectory(join(root,'missing'))],error=>error.code==='ENOENT'&&error.errno===2);
+    const file=join(root,'file');fs.writeFileSync(file,'body');
+    assert.throws(()=>[...iterateDirectory(file)],error=>error.code==='ENOTDIR'&&error.errno===20);
+    assert.deepEqual(listDirectory(directory,0),[],'prior errno cannot turn EOF into a failure');
+    assert.equal(descriptorCount(),before);
+    console.log(JSON.stringify({nativeReadError:'EBADF',closes,descriptorsBefore:before,descriptorsAfter:descriptorCount()}));
+  `);
+  assert.equal(result.nativeReadError, 'EBADF');
+  assert.equal(result.descriptorsAfter, result.descriptorsBefore);
+});
+
+test('unsupported or missing directory capabilities stay local and do not block stateless MCP', async t => {
+  const result = await directoryProbe(t, `
+    const originalArch=Object.getOwnPropertyDescriptor(process,'arch');
+    Object.defineProperty(process,'arch',{...originalArch,value:'arm64'});
+    assert.throws(()=>listDirectory(directory),error=>error.code==='DIRECTORY_UNAVAILABLE'&&error.systemCode==='DIRECTORY_RUNTIME_UNSUPPORTED');
+    Object.defineProperty(process,'arch',originalArch);
+    const original=ffi.dlopen;
+    ffi.dlopen=()=>{throw new Error('injected missing native capability');};
+    assert.throws(()=>listDirectory(directory),error=>error.status==='unavailable'&&error.systemCode==='DIRECTORY_RUNTIME_UNAVAILABLE');
+    const output=new PassThrough();let emitted='';output.on('data',bytes=>emitted+=bytes);
+    await serveMcp({serverInfo:{name:'capability-failure-fixture',version:'1'},tools:[],validateCall:()=>{},handleCall:()=>{},
+      input:Readable.from([JSON.stringify({jsonrpc:'2.0',id:1,method:'ping'})+'\\n']),output});
+    assert.deepEqual(JSON.parse(emitted).result,{});
+    ffi.dlopen=original;
+    assert.deepEqual(listDirectory(directory,0),[]);
+    console.log(JSON.stringify({unavailable:'local',unrelatedPing:'completed',laterEnumeration:'completed'}));
+  `);
+  assert.deepEqual(result, { unavailable: 'local', unrelatedPing: 'completed', laterEnumeration: 'completed' });
+});
+
 test('actual stdio transport emits parse/method/tool/argument errors and survives oversized input', async t => {
   const fixture = makeFixture(t, 'probe-hook');
   const messages = [initialize, { jsonrpc: '2.0', method: 'notifications/initialized' },

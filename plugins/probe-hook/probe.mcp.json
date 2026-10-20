@@ -3,7 +3,7 @@
   "mcpServers": {
     "probe": {
       "type": "stdio",
-      "command": "node",
+      "command": "bun",
       "args": ["./scripts/mcp-probe.mjs"],
       "env": {
         "PROBE_LITERAL": "literal-ok",

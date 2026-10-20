@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * Standing rules for MiniMax Code's MINIMAX-format command hooks (0.6.12).
  *

@@ -3,7 +3,7 @@
   "mcpServers": {
     "control-task": {
       "type": "stdio",
-      "command": "node",
+      "command": "bun",
       "args": ["./scripts/control-task.mjs"],
       "description": "Pending control-task receipts; the trusted native PostToolUse hook performs each session operation and appends its definitive result."
     }

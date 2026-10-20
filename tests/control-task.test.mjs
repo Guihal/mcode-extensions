@@ -58,7 +58,7 @@ test('actual stdio discovery is stateless; direct clients receive only pending r
     { jsonrpc: '2.0', id: 2, method: 'tools/list' },
   ], rpcOptions(f));
   assert.equal(discovery.code, 0, discovery.stderr);
-  assert.equal(discovery.responses[0].result.serverInfo.version, '0.2.1');
+  assert.equal(discovery.responses[0].result.serverInfo.version, '0.2.2');
   assert.deepEqual(discovery.responses[1].result.tools.map((value) => value.name), TOOLS.map((value) => value.name));
   assert.ok(discovery.responses[1].result.tools.every((value) => value.inputSchema.additionalProperties === false));
   for (const name of ['control_task_set', 'control_task_patch', 'control_task_confirm']) {
@@ -263,7 +263,7 @@ test('complete requirements policy reaches discovery and hooks, and set/patch re
     const f = makeFixture(t, 'control-task');
     const runRegistered = async (payload) => {
       const commands = registered[payload.hook_event_name].flatMap((group) => group.hooks).filter((entry) => entry.type === 'command');
-      assert.ok(commands.some((entry) => entry.command.replaceAll('${PLUGIN_ROOT}', f.pluginRoot) === `node "${hook}"`), 'Exercise the script actually registered for this event');
+      assert.ok(commands.some((entry) => entry.command.replaceAll('${PLUGIN_ROOT}', f.pluginRoot) === `bun "${hook}"`), 'Exercise the script actually registered for this event');
       const result = await runHook(hook, payload, rpcOptions(f));
       assert.equal(result.code, 0, result.stderr);
       return result;

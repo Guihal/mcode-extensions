@@ -7,11 +7,40 @@ Installation and upgrade commands are in the [README](../README.md#install-or-up
 
 ## Supported environment
 
-The native adapter is pinned to **`@minimax-ai/code` 0.6.12 on Linux**. Its engine
-range is `>=22.19 <23 || >=24 <27`; development checks have exercised Node
-22.23.3 and 24.19.0. Node 25 and 26 have not been exercised here. The runtime
-uses built-in `node:sqlite`, Linux procfs and `/usr/bin/flock` from util-linux.
-There are no plugin npm dependencies or automatic system-package installations.
+All owned hook and MCP entrypoints execute with **Bun 1.4.3** on **Linux x64,
+little endian, with glibc**, Linux procfs and `/usr/bin/flock` from util-linux.
+The version is pinned in [`.bun-version`](../.bun-version). Install/upgrade and
+ordinary verification commands also use Bun. The `bun` executable must be on
+the host's child-process `PATH`. There are no plugin package dependencies or
+automatic system-package installations.
+
+The external **`@minimax-ai/code` 0.6.12 host** declares Node
+`>=22.19 <23 || >=24 <27`; its published launcher is unchanged. The offline
+native checks exercise Node 22.23.3 and 24.19.0 hosts dispatching actual Bun
+plugins. Node 25/26 hosts and running the complete MiniMax CLI under Bun have
+not been verified here. `node:` imports inside the plugins use Bun's built-in
+compatibility modules, including `node:sqlite`; they do not launch Node.
+
+### Bounded directory reads under Bun
+
+Bun 1.4.3's `fs.Dir` and `Glob` enumerate the full directory before yielding
+entries. The shared [directory adapter](../runtime/directory.mjs) therefore
+uses a narrow synchronous `bun:ffi` boundary to glibc's `opendir`, `readdir64`
+and `closedir`. It copies each record before advancing and releases the stream
+on exhaustion, early exit and errors. Storage still opens a safe pinned parent
+descriptor first and enforces its 4,096-entry limit; the host's descriptor
+inventory uses the same incremental primitive. An unsupported ABI or unavailable
+native primitive yields a local unavailable outcome, without an eager fallback
+or a requirement to stop unrelated work.
+
+The verified ABI is Linux x64 glibc (tested with glibc 2.39). The adapter checks
+the platform and glibc symbol boundary before reading native record fields.
+Other libc/architecture combinations are not claimed as supported. Bun's
+[official FFI documentation](https://bun.sh/docs/runtime/ffi) marks that API
+experimental and advises against production reliance. This release uses only
+the tested synchronous libc boundary and pins Bun; the focused regression
+checks cover bounds, native errors, descriptor cleanup and pinned-directory
+behavior. Future Bun or ABI changes require renewed compatibility checks.
 
 The session metadata adapter depends on this host's internal V2 schema, not a
 public session MCP API. A changed host version or unsupported database shape
@@ -23,10 +52,10 @@ exposing original functions in disposable copies. See the
 
 | Package | Version | Native tools |
 | --- | --- | --- |
-| `control-task` | 0.2.1 | `control_task_get`, `control_task_set`, `control_task_patch`, optional `control_task_confirm` |
-| `agent-state` | 0.2.1 | `agent_state_note`, `agent_state_checkpoint` |
-| `injection-rules` | 0.2.0 | Hook delivery; no MCP server |
-| `probe-hook` | 0.1.0 | `probe_echo`, disabled through packaged configuration by default |
+| `control-task` | 0.2.2 | `control_task_get`, `control_task_set`, `control_task_patch`, optional `control_task_confirm` |
+| `agent-state` | 0.2.2 | `agent_state_note`, `agent_state_checkpoint` |
+| `injection-rules` | 0.2.1 | Hook delivery; no MCP server |
+| `probe-hook` | 0.1.1 | `probe_echo`, disabled through packaged configuration by default |
 
 ## Why a tool first returns pending
 
@@ -376,11 +405,13 @@ guess session identity or report an unobserved success.
 From the repository root:
 
 ```sh
-node scripts/sync-plugin-runtime.mjs --check
-node --test tests/*.test.mjs
+bun scripts/sync-plugin-runtime.mjs --check
+bun scripts/test.mjs
 ```
 
-The ordinary suite covers bounded transport and storage; original-state
+The ordinary runner starts each test file in its own serial Bun test process,
+with an adequate test-harness timeout; product hook and lock deadlines remain
+unchanged. The suite covers bounded transport and storage; original-state
 compatibility; task patch/reconciliation/recovery; guide ownership, freshness
 and cadence; disabled/enabled probe behavior; copied standalone packages and
 exact role tool selections; and existing rule delivery. Tests inspect subprocess
@@ -392,20 +423,24 @@ already present at an absolute path:
 
 ```sh
 MCODE_HOST_PACKAGE=/absolute/path/to/minimax-code-0.6.12/package \
+  MCODE_BUN_BINARY="$(command -v bun)" \
   node --test tests/mcode-host-contract.test.mjs tests/mcode-ports-host.test.mjs
 ```
 
 Those fixtures use actual native package discovery/materialization, MCP
 discovery/adapter execution, hook commands, lifecycle/steering/stop routing,
 role parsing/capability assembly and skill loading. They preserve the original
-published host code and use isolated data with no provider API. The current
+Node host code while checking the Bun executable of native MCP children and
+Bun runtime metadata captured before the real hook engine imports. They use
+isolated data with no provider API. The current
 native metadata writer's unavailable `better-sqlite3` binary is not simulated
 as a successful live writer: fixtures use actual native codecs/DDL with built-in
 SQLite for controlled session rows.
 
-CI runs the full dependency-free ordinary suite on Node 22 and 24. Native-host
-tests without `MCODE_HOST_PACKAGE` are reported as skipped, not counted as
-native evidence. A local successful run does not establish that GitHub Actions
+CI installs the pinned Bun and runs the full ordinary suite. The ordinary
+runner lists native-host tests as a separate command; they require
+`MCODE_HOST_PACKAGE` and the selected Bun binary and are not counted as native
+evidence unless actually executed. A local successful run does not establish that GitHub Actions
 executed; billing or service availability must be reported from the actual run.
 Likewise, fixture bodies prove retention and delivery of supplied content; direct
 tool/hook guidance checks prove the shipped policy text is exposed. Neither is
