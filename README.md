@@ -9,6 +9,7 @@ Everything here is published without secrets, sessions, logs or machine-specific
 
 ```sh
 git clone https://github.com/Guihal/mcode-extensions.git
+mkdir -p ~/.minimax/plugins ~/.minimax/skills ~/.minimax/agents ~/.minimax/rules
 cp -r mcode-extensions/plugins/* ~/.minimax/plugins/
 cp -r mcode-extensions/skills/* ~/.minimax/skills/
 cp -r mcode-extensions/agents/* ~/.minimax/agents/
@@ -49,7 +50,7 @@ plugins/<name>/scripts/*.mjs                  hook and MCP server implementation
 
 | Plugin            | What it does                                                                                      |
 | ----------------- | ------------------------------------------------------------------------------------------------- |
-| `injection-rules` | Injects standing rule bodies at session start and re-injects reminder suffixes on their own cadence. |
+| `injection-rules` | Delivers full standing rules at session/subagent start and after compaction; reminders on each tool result, input or configured prompt cadence. |
 | `control-task`    | Durable canonical task anchor: `control_task_set` / `control_task_get` over a per-session file store. |
 | `agent-state`     | Reusable guide store: `agent_state_note` and `agent_state_checkpoint` over a per-session file store. |
 | `probe-hook`      | Throwaway probe used to verify that plugin hooks, MCP servers and skills load. Disabled by default.  |
@@ -70,18 +71,99 @@ modes. The store deliberately refuses task notes and progress reports — the ta
 
 ### injection-rules
 
-Reads rule files from `~/.minimax/rules/` (user rules) and from `rules/` inside the plugin
-(bundled rules), and injects them per their own cadence. A rule is a JSON file:
+Reads rule files from `~/.minimax/rules/` and optional `rules/` inside the plugin.
+User rules override bundled defaults by `name`. This repository keeps the shipped rules
+in the top-level `rules/` directory, so install **both the plugin and the rule files**.
+The engine reloads them on each hook invocation.
+
+All nine shipped rules have full standing bodies enabled at startup and in subagents.
+`70-reasoning-poison` also has a compact reminder on **every `PostToolUse` event**,
+including execution errors, and on every new input. It preserves the distinction between reasoning
+and evidence, invalidates conclusions built on a disproved premise, and treats an
+already-supported answer to the user as a ready action.
+
+| Host event | Delivery |
+| --- | --- |
+| `SessionStart` (`startup`, `resume`, `plugin_activation`, `compact`) | Full applicable standing bodies. Compaction restores the bodies rather than relying on the summary to preserve them. |
+| `SubagentStart` | Full bodies for the child role, respecting `apply` and `send_on_subagent`. |
+| `UserPromptSubmit` | `every_input` reminders and due `every_n_turns` reminders. |
+| `PostToolUse` | `every_tool` reminders, appended as separate context without replacing the tool output. No cadence counter, tool-name restriction or success filter. |
+
+MiniMax Code 0.6.12 restores hooks after both automatic and manual compaction through
+`SessionStart` with `source: "compact"`. Its `PostCompact` event cannot accept
+`additionalContext`; registering that output there would not restore the rules.
+
+A rule is a JSON file:
 
 ```json
 {
   "name": "70-my-rule",
   "apply": ["*"],
-  "send_on_start": false,
-  "body": "short pointer shown at session start",
-  "remind": { "every_n_turns": 3, "suffix": "full text re-injected every 3 turns" }
+  "send_on_start": true,
+  "send_on_subagent": true,
+  "body": "The complete standing requirement, available from the first decision.",
+  "remind": {
+    "every_input": true,
+    "every_tool": true,
+    "suffix": "A compact, actionable reminder of that requirement."
+  }
 }
 ```
+
+`send_on_start` and `send_on_subagent` default to enabled. Set the relevant flag to
+`false` to opt out. A child keeps its subagent policy on resume and compaction.
+`apply` accepts `"*"`, exact role names, and exclusions such as `"!critic"`;
+role comparisons ignore case. The host supplies `agent_type` for `SubagentStart`
+and child tool events, but omits it from restored `SessionStart` payloads. The engine
+records known session identities and restores the role by session ID at those
+boundaries. An unknown or corrupt identity on restore receives only rules applicable
+to every role, with a diagnostic; it cannot safely select role-specific rules.
+The main role defaults to `mavis` (`MINIMAX_AGENT_NAME` can override it in direct
+invocations). Start a new session after upgrading to establish its identity.
+
+For less frequent input reminders, use
+`"remind": { "every_n_turns": 3, "suffix": "..." }`.
+The legacy field **counts `UserPromptSubmit` events**, not model responses or tool
+calls. `every_input` takes precedence over that cadence. Tool results and compaction
+neither advance nor reset it. Counters are isolated per session; the old `turns.json`
+is read for migration. A missing session ID or unavailable counter storage skips only
+periodic delivery, while stateless input/tool reminders continue.
+
+The reminder reaches the next model inference after a tool result. It does not
+interrupt reasoning already in progress, change a selected call's arguments, enforce
+an inference-token budget, or make the model obey the instruction. The lifecycle
+contract and its coverage limits are documented in [the rule review](docs/reasoning-rules-review.md).
+
+**Host coverage limit:** in 0.6.12, an unknown tool, argument-validation failure,
+permission/hook rejection, or an unexecuted remainder of an aborted batch can return
+before `PostToolUse`. Those attempts receive no new result reminder from this plugin.
+Exceptions thrown during tool execution do reach the hook. Covering every rejected
+attempt requires a host change; there is no supported `PostToolUseFailure` event to add.
+
+To upgrade an existing installation from this checkout:
+
+```sh
+cp -r plugins/injection-rules ~/.minimax/plugins/
+cp rules/*.json ~/.minimax/rules/
+cp AGENTS.md ~/.minimax/AGENTS.md
+```
+
+Start a new session so the host loads the expanded hook registration. Copying only the
+new rule JSON into a running 0.1.0 plugin does not add its missing tool/subagent hooks.
+
+### Verification
+
+The dependency-free suite executes the commands registered in the installed hook
+configuration against isolated rule and state directories:
+
+```sh
+node --test tests/injection-rules.test.mjs
+```
+
+It covers the shipped rules, startup/resume/compaction, child roles, every tool result,
+errors, overrides, malformed input, unavailable storage, and concurrent sessions.
+See [the rule review](docs/reasoning-rules-review.md) for the additional offline test
+against the official MiniMax Code 0.6.12 parser and lifecycle.
 
 ## AGENTS.md
 
