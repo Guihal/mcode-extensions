@@ -1,107 +1,44 @@
-import { appendFileSync, existsSync, mkdirSync } from 'node:fs';
-import { homedir } from 'node:os';
+#!/usr/bin/env node
 import { join } from 'node:path';
-import { createInterface } from 'node:readline';
+import { serveMcp, isPlainObject } from './runtime/transport.mjs';
+import { resolvePluginDataRoot } from './runtime/host.mjs';
+import { RuntimeError, appendBoundedLog, diagnosticRecord, boundedDiagnostic } from './runtime/storage.mjs';
+import { readProbeConfig } from './probe-config.mjs';
 
-const STATE_DIR = join(homedir(), '.minimax', 'probe-state');
+const config = readProbeConfig();
+const tools = [{ name: 'probe_echo',
+  description: 'Opt-in diagnostic echo. The packaged probe.config.json is disabled by default. When enabled, returns bounded text and the actual metadata-log write status; echo text is never logged.',
+  inputSchema: { type: 'object', additionalProperties: false, properties: { text: { type: 'string', maxLength: 4096 } }, required: ['text'] } }];
 
-const TOOLS = [
-  {
-    name: 'probe_echo',
-    description: 'Probe tool: echoes the given text back and reports the state file it wrote.',
-    inputSchema: {
-      type: 'object',
-      properties: { text: { type: 'string' } },
-      required: ['text'],
-    },
-  },
-];
-
-function note(line) {
-  try {
-    mkdirSync(STATE_DIR, { recursive: true });
-    appendFileSync(join(STATE_DIR, 'probe.log'), line + '\n');
-  } catch {
-    // keep the probe fail-open
+function validateCall(name, args) {
+  if (name !== 'probe_echo' || !isPlainObject(args) || Object.keys(args).length !== 1 ||
+      typeof args.text !== 'string' || !args.text.isWellFormed() || args.text.length > 4096 || Buffer.byteLength(args.text) > 16 * 1024) {
+    throw new RuntimeError('INVALID_ARGUMENTS', 'probe_echo requires only text, at most 4096 Unicode characters and 16 KiB UTF-8.', { status: 'rejected' });
   }
+  return { text: args.text };
 }
 
-function send(message) {
-  process.stdout.write(JSON.stringify(message) + '\n');
-}
+await boundedDiagnostic(`PROBE_CONFIG_${config.status.toUpperCase()}`, { plugin: 'probe-hook', location: config.path });
 
-note(
-  JSON.stringify({
-    at: new Date().toISOString(),
-    event: 'mcp-server-started',
-    stateDir: STATE_DIR,
-    processCwd: process.cwd(),
-    pluginData: process.env.PLUGIN_DATA ?? null,
-    probeLiteral: process.env.PROBE_LITERAL ?? null,
-  }),
-);
-
-const rl = createInterface({ input: process.stdin });
-rl.on('line', (line) => {
-  const trimmed = line.trim();
-  if (!trimmed) return;
-  let message;
-  try {
-    message = JSON.parse(trimmed);
-  } catch {
-    return;
-  }
-  if (message.method === 'initialize') {
-    send({
-      jsonrpc: '2.0',
-      id: message.id,
-      result: {
-        protocolVersion: '2025-06-18',
-        capabilities: { tools: {} },
-        serverInfo: { name: 'probe-mcp', version: '0.0.1' },
-      },
-    });
-    return;
-  }
-  if (message.method === 'notifications/initialized') return;
-  if (message.method === 'tools/list') {
-    send({ jsonrpc: '2.0', id: message.id, result: { tools: TOOLS } });
-    return;
-  }
-  if (message.method === 'tools/call') {
-    const args = (message.params && message.params.arguments) || {};
-    const stateFile = join(STATE_DIR, 'tool-calls.log');
+await serveMcp({ serverInfo: { name: 'probe-mcp', version: '0.1.0' }, tools, validateCall,
+  async handleCall(name, args) {
+    if (!config.enabled) return { content: [{ type: 'text', text: `PROBE-MCP-DISABLED: packaged configuration status=${config.status}. No diagnostic storage was attempted.` }],
+      structuredContent: { status: 'disabled', configuration: config.status } };
+    let stateFile;
     try {
-      mkdirSync(STATE_DIR, { recursive: true });
-      appendFileSync(stateFile, JSON.stringify({ at: new Date().toISOString(), text: args.text }) + '\n');
-    } catch {
-      // keep the probe fail-open
+      const { pluginDataDir } = resolvePluginDataRoot('probe-hook', { lane: 'mcp' });
+      stateFile = join(pluginDataDir, 'tool-calls.log');
+      await appendBoundedLog(pluginDataDir, 'tool-calls.log', diagnosticRecord('PROBE_MCP_TOOL',
+        { plugin: 'probe-hook', operation: name, location: stateFile }));
+      return { content: [{ type: 'text', text: `PROBE-MCP-TOOL-OK: ${args.text} | stateFile=${stateFile} | exists=true` }],
+        structuredContent: { status: 'committed', echo: args.text, stateFile,
+          literalEnv: process.env.PROBE_LITERAL === 'literal-ok',
+          expandedEnvLiteral: process.env.PROBE_EXPANDED === '${PLUGIN_DATA}' } };
+    } catch (error) {
+      await boundedDiagnostic(error.code ?? 'PROBE_MCP_WRITE_FAILED', { plugin: 'probe-hook', operation: name, location: stateFile });
+      const status = error.committed ? 'uncertain' : 'unavailable';
+      return { isError: true, content: [{ type: 'text', text: `PROBE-MCP-TOOL-FAILED: status=${status} code=${error.code ?? 'STORAGE_UNAVAILABLE'}${stateFile ? ` | stateFile=${stateFile}` : ''}. No successful diagnostic append was confirmed.` }],
+        structuredContent: { status, code: error.code ?? 'STORAGE_UNAVAILABLE', ...(stateFile ? { stateFile } : {}) } };
     }
-    send({
-      jsonrpc: '2.0',
-      id: message.id,
-      result: {
-        content: [
-          {
-            type: 'text',
-            text:
-              'PROBE-MCP-TOOL-OK: ' +
-              String(args.text || '') +
-              ' | stateFile=' +
-              stateFile +
-              ' | exists=' +
-              String(existsSync(stateFile)),
-          },
-        ],
-      },
-    });
-    return;
-  }
-  if (message.id !== undefined) {
-    send({
-      jsonrpc: '2.0',
-      id: message.id,
-      error: { code: -32601, message: 'method not found: ' + String(message.method) },
-    });
-  }
+  },
 });

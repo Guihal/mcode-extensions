@@ -25,6 +25,12 @@ const chunkSha256 = 'c9d0342a9efa65955831fdc28907cbd434aab354ec3fbaf1f253f7d3b9b
 // sha512-aA4XPl9tYHTrtIS5DLB5DBSdxlcokZJ5BGUT/vSiDWei/tlVV5hIEVTgFhnSB6WM4evfNwOJtfi2fJVPNpJveg==
 
 test('published mcode 0.6.12 hook and compaction contract', { skip: !packageRoot }, async (t) => {
+  const previousPath = process.env.PATH;
+  process.env.PATH = `${dirname(process.execPath)}:${previousPath ?? '/usr/bin:/bin'}`;
+  t.after(() => {
+    if (previousPath === undefined) delete process.env.PATH;
+    else process.env.PATH = previousPath;
+  });
   const sourceRoot = resolve(packageRoot);
   const metadata = JSON.parse(readFileSync(join(sourceRoot, 'package.json'), 'utf8'));
   assert.equal(metadata.name, '@minimax-ai/code');

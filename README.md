@@ -5,24 +5,100 @@ Local plugins, rules, skills, agent roles, MCP servers and the global `AGENTS.md
 
 Everything here is published without secrets, sessions, logs or machine-specific state.
 
-## Install
+## Install or upgrade
+
+The existing ports target **MiniMax Code 0.6.12 on Linux**, with util-linux
+`/usr/bin/flock` and the host-supported Node range `>=22.19 <23 || >=24 <27`.
+Development checks have run on Node 22.23.3 and 24.19.0. The plugins need no npm
+install of their own. Check the Node binary that the host will find on `PATH`:
 
 ```sh
-git clone https://github.com/Guihal/mcode-extensions.git
-mkdir -p ~/.minimax/plugins ~/.minimax/skills ~/.minimax/agents ~/.minimax/rules
-cp -r mcode-extensions/plugins/* ~/.minimax/plugins/
-cp -r mcode-extensions/skills/* ~/.minimax/skills/
-cp -r mcode-extensions/agents/* ~/.minimax/agents/
-cp mcode-extensions/AGENTS.md ~/.minimax/AGENTS.md
-cp mcode-extensions/rules/* ~/.minimax/rules/
-cp mcode-extensions/mcp.example.json ~/.minimax/mcp.json
-sed -i "s#<HOME>#$HOME#g" ~/.minimax/mcp.json   # the template ships <HOME> placeholders
-mcode plugin list --available --marketplace local
+node --version
+/usr/bin/flock --version
 ```
 
-`~/.minimax/plugins` is the local marketplace directory; a plugin listed as `enabled` there is
-loaded on the next session. MCP servers are read from `~/.minimax/mcp.json` — the file next to
-`config.yaml`, not from the project.
+Clone this repository, or update your existing checkout, then run the upgrade
+block **from the checkout root**. It copies complete plugin packages, including
+hidden manifests and `scripts/runtime/`, plus the 24 roles, task skill, standing
+rules and `AGENTS.md`. It preserves the native `v2/plugin-data` directory and
+backs up files that it replaces. Existing `mcp.json`, `config.yaml`, permissions
+and credentials are left in place.
+
+The example uses the standard data directory `~/.minimax`; when your host uses
+another directory, set `MINIMAX_DATA_DIR` to its actual absolute path before
+running it. The current injection-rules user-rule reader uses
+`~/.minimax/rules` independently of that data-root setting. Review your own
+modified rules and instructions against the backup after an upgrade.
+
+<!-- install-upgrade -->
+```sh
+(
+  set -eu
+  mcode_data_dir="${MINIMAX_DATA_DIR:-$HOME/.minimax}"
+  mcode_rules_dir="$HOME/.minimax/rules"
+  mcode_backup_dir="$mcode_data_dir/extension-backups/$(date -u +%Y%m%dT%H%M%SZ)-$$"
+
+  node scripts/sync-plugin-runtime.mjs --check
+  /usr/bin/flock --version
+  mkdir -p "$mcode_backup_dir" "$mcode_data_dir/plugins" \
+    "$mcode_data_dir/skills" "$mcode_data_dir/agents" "$mcode_rules_dir"
+  for mcode_item in plugins skills agents AGENTS.md; do
+    if [ -e "$mcode_data_dir/$mcode_item" ]; then
+      cp -a "$mcode_data_dir/$mcode_item" "$mcode_backup_dir/"
+    fi
+  done
+  cp -a "$mcode_rules_dir" "$mcode_backup_dir/user-rules"
+
+  cp -a plugins/. "$mcode_data_dir/plugins/"
+  cp -a skills/. "$mcode_data_dir/skills/"
+  cp -a agents/. "$mcode_data_dir/agents/"
+  cp -a rules/. "$mcode_rules_dir/"
+  cp AGENTS.md "$mcode_data_dir/AGENTS.md"
+)
+```
+
+Then **restart MiniMax Code or use its plugin management to rescan and reload
+these complete roots**. For a separately imported plugin, reimport the complete
+root. Verify the four package versions and start a new session so the expanded
+hook registrations and role capabilities are loaded. Copying an individual
+script, a role file or a config flag into a running cached plugin does not
+establish that both the hook snapshot and the MCP process were refreshed.
+The offline host tests exercise native package discovery, materialization and
+MCP reload APIs; they do not certify a particular CLI reload command or an
+installation in your live session.
+
+Normal installation keeps the diagnostic probe disabled. See
+[probe-hook](#probe-hook) for explicit enablement and
+[the port contract](docs/existing-ports-contract.md) for state locations,
+compatibility, recovery and host limits.
+
+### Optional fresh MCP configuration
+
+The plugins above declare their own MCP servers in their manifests. They do
+**not** require replacing your user-level `mcp.json`. The repository's
+`mcp.example.json` instead describes optional external services with
+machine-specific executable paths.
+
+Only if you want to initialize a **new** user MCP configuration, this separate
+command expands the `<HOME>` placeholders and exclusively creates the file;
+it refuses to overwrite an existing one. Review the services and local paths
+before enabling them. `config.example.yaml` is reference material with redacted
+credentials, not an upgrade replacement for your working configuration.
+
+<!-- fresh-mcp-config -->
+```sh
+MCODE_INSTALL_DATA_DIR="${MINIMAX_DATA_DIR:-$HOME/.minimax}" node --input-type=module <<'NODE'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
+const directory = process.env.MCODE_INSTALL_DATA_DIR;
+const template = JSON.parse(readFileSync('mcp.example.json', 'utf8'));
+const rendered = JSON.stringify(template, (_key, value) =>
+  typeof value === 'string' ? value.replaceAll('<HOME>', homedir()) : value, 2);
+mkdirSync(directory, { recursive: true });
+writeFileSync(join(directory, 'mcp.json'), rendered + '\n', { flag: 'wx', mode: 0o600 });
+NODE
+```
 
 ## Layout
 
@@ -34,7 +110,11 @@ mcp.example.json       template for ~/.minimax/mcp.json
 rules/                 standing rules injected by injection-rules
 skills/task/           task-cycle skill
 agents/<name>/         custom subagent roles
-plugins/<name>/        local plugin packages
+plugins/<name>/        complete local plugin packages
+runtime/              canonical shared boundary/storage modules
+scripts/              deterministic runtime-copy synchronization
+tests/                ordinary and opt-in native-host checks
+docs/                 contracts and evidence boundaries
 roles-src/             raw role prompts the agents/ dir was generated from
 ```
 
@@ -44,6 +124,7 @@ A plugin package looks like this:
 plugins/<name>/.minimax-plugin/plugin.json   manifest
 plugins/<name>/hooks/hooks.json               command hooks
 plugins/<name>/scripts/*.mjs                  hook and MCP server implementations
+plugins/<name>/scripts/runtime/*.mjs          included shared runtime (three plugins)
 ```
 
 ## Plugins
@@ -51,23 +132,87 @@ plugins/<name>/scripts/*.mjs                  hook and MCP server implementation
 | Plugin            | What it does                                                                                      |
 | ----------------- | ------------------------------------------------------------------------------------------------- |
 | `injection-rules` | Delivers full standing rules at session/subagent start and after compaction; reminders on each tool result, input or configured prompt cadence. |
-| `control-task`    | Durable canonical task anchor: `control_task_set` / `control_task_get` over a per-session file store. |
-| `agent-state`     | Reusable guide store: `agent_state_note` and `agent_state_checkpoint` over a per-session file store. |
-| `probe-hook`      | Throwaway probe used to verify that plugin hooks, MCP servers and skills load. Disabled by default.  |
+| `control-task`    | Complete durable task, revisioned `get` / `set` / `patch` / `confirm`, raw-input reconciliation and bounded stop checkpoints. |
+| `agent-state`     | Own reusable guides, verified immediate-parent sharing, content freshness and completed-tool reminders. |
+| `probe-hook`      | Packaged default-off diagnostic for hook, MCP and skill loading; enabled logs contain bounded metadata only.  |
 
 ### control-task
 
-The canonical task for a session lives in a file, so it survives compaction and a process restart.
-`control_task_set` replaces the whole task body; the task is re-injected into every turn by a
-companion hook. Use it when the task definition materially changes — a goal change, an added or
-removed durable requirement, a corrected source of truth. Ordinary corrections and step-by-step
-instructions stay in the conversation.
+The complete canonical task survives compaction and process restart. It includes
+the intended outcome, explicit requirements and grounded implied requirements
+with their basis and source, applicable constraints, result conditions,
+task-specific rules and source-of-truth references. Inferences stay identified
+as inferences; unresolved assumptions remain tentative with their basis or
+missing evidence. Earlier applicable requirements remain in the task when a
+new correction arrives. Progress and current execution steps stay in the
+conversation. Agent-written task text remains subordinate to original
+instructions and their actual priority.
+
+| Tool | Use |
+| --- | --- |
+| `control_task_get` | Read the task/review revisions and original body; optionally read a bounded range of raw prompt observations or their exact locators. |
+| `control_task_set` | Replace the whole task when its durable definition changes, retaining all still-applicable requirements. |
+| `control_task_patch` | Apply an atomic, revision-checked set of anchored add/replace/remove edits. |
+| `control_task_confirm` | Explicitly confirm an unchanged task after reviewing the complete current task and all inputs through the exact current input revision. |
+
+Every native `UserPromptSubmit` occurrence records raw input and adds review
+debt without rewriting the task. Review the **whole current task together with
+each new original input**: use `set`/`patch` if the definition changes, or
+`confirm` if it does not. `reviewedInputRevision` states exactly what was
+considered; an input arriving later stays pending. Ordinary steering can require
+either branch. The host's projection cannot establish human provenance, final
+acceptance or exact-once input delivery; identical same-turn observations are
+retained separately.
+
+The initial MCP response is **pending**, including for reads. Only a matching
+trusted `PostToolUse` result supplies the definitive operation outcome. A direct
+MCP client without MiniMax hooks cannot read or mutate session state. Structural
+validation and review counters do not prove that a model understood or recorded
+every requirement. Examples and exact recovery semantics are in
+[the port contract](docs/existing-ports-contract.md#complete-task-and-reconciliation).
 
 ### agent-state
 
-Reusable micro-skills: procedures, verified environment facts, diagnostic recipes, known failure
-modes. The store deliberately refuses task notes and progress reports — the task itself belongs to
-`control_task_set`. A hook re-delivers the collected guides into context.
+Reusable micro-skills contain procedures, verified environment facts,
+diagnostic recipes and observed failure modes. Policy directs the model to
+exclude task notes, progress and unsupported explanations. Validation checks
+shape, size, ownership and safe file operations; it does not semantically
+classify prose or guarantee compliance with that policy.
+
+`agent_state_note` creates or edits an own guide by its exact filename.
+`agent_state_checkpoint` maintains one private optional compatibility guide.
+Collection includes own files plus **shared guides from a verified current
+immediate parent**; it never discovers guides by a common workspace or a last
+active-session pointer. Guides restore on supported start/resume/compact
+boundaries and refresh after a successful own save or a detected content
+change. The default reminder cadence counts 10 completed other-tool events,
+not user prompts. A cadence reminder does not require inventing a guide when
+nothing reusable was learned.
+
+Like control-task, a save is pending until its definitive native hook result.
+An already committed guide remains committed if a later delivery-index refresh
+fails; the result reports that partial outcome and delivery can retry.
+
+### probe-hook
+
+`plugins/probe-hook/probe.config.json` ships as `{"enabled": false}`. Both
+entrypoints resolve this one configuration inside their own complete package.
+Missing, invalid or unsafe configuration stays disabled. Disabled mode creates
+no diagnostic files; arbitrary environment switches do not enable hooks.
+
+To opt in, change `enabled` to the boolean `true` in the installed/imported
+**source plugin root**, then rescan/reload or reimport that complete root and
+restart the host as needed. This is necessary for both the immutable hook
+snapshot and the MCP process to use the new configuration. Do not edit only a
+cached hook snapshot. Set it back to `false` and reload both lanes when finished.
+A normal upgrade restores the shipped disabled configuration.
+
+Enabled `probe_echo` returns at most 4,096 characters and the actual metadata-log
+write status. Unknown tools and failed appends produce errors, never the OK
+marker. Hook and MCP logs use the same verified native plugin data directory,
+contain no prompt/tool-body text, and rotate at 128 KiB with one `.previous`
+file. The intentionally literal `PROBE_EXPANDED=${PLUGIN_DATA}` environment
+probe and unchanged skill-loader marker remain part of the diagnostic.
 
 ### injection-rules
 
@@ -140,30 +285,38 @@ before `PostToolUse`. Those attempts receive no new result reminder from this pl
 Exceptions thrown during tool execution do reach the hook. Covering every rejected
 attempt requires a host change; there is no supported `PostToolUseFailure` event to add.
 
-To upgrade an existing installation from this checkout:
-
-```sh
-cp -r plugins/injection-rules ~/.minimax/plugins/
-cp rules/*.json ~/.minimax/rules/
-cp AGENTS.md ~/.minimax/AGENTS.md
-```
-
-Start a new session so the host loads the expanded hook registration. Copying only the
-new rule JSON into a running 0.1.0 plugin does not add its missing tool/subagent hooks.
+Use the [complete-root upgrade](#install-or-upgrade) above for rule, hook and
+role changes. Copying only new rule JSON into an older running plugin does not
+add its missing event registrations.
 
 ### Verification
 
-The dependency-free suite executes the commands registered in the installed hook
-configuration against isolated rule and state directories:
+Run every ordinary extension check and generated-copy parity check:
 
 ```sh
-node --test tests/injection-rules.test.mjs
+node scripts/sync-plugin-runtime.mjs --check
+node --test tests/*.test.mjs
 ```
 
-It covers the shipped rules, startup/resume/compaction, child roles, every tool result,
-errors, overrides, malformed input, unavailable storage, and concurrent sessions.
-See [the rule review](docs/reasoning-rules-review.md) for the additional offline test
-against the official MiniMax Code 0.6.12 parser and lifecycle.
+The ordinary suite uses isolated state, actual plugin entrypoint subprocesses,
+and constructed hook/session fixtures. CI runs it on Node 22 and 24 without
+installing plugin dependencies. The two native-host files are opt-in and are
+reported as skipped when their package fixture is absent; those skips are not
+native integration evidence.
+
+With an unpacked, unmodified `@minimax-ai/code@0.6.12` package and its dependencies
+already available, run the separate offline host checks:
+
+```sh
+MCODE_HOST_PACKAGE=/absolute/path/to/minimax-code-0.6.12/package \
+  node --test tests/mcode-host-contract.test.mjs tests/mcode-ports-host.test.mjs
+```
+
+Those tests checksum the published host, use its original parser, lifecycle,
+package materializer, MCP adapter and role capability assembler, and inspect
+returned context and isolated durable data. They call no model/provider API.
+See [the port contract](docs/existing-ports-contract.md#verification) and
+[the earlier rule review](docs/reasoning-rules-review.md) for the evidence limits.
 
 ## AGENTS.md
 
@@ -181,9 +334,10 @@ without repairing.
 
 ## MCP servers
 
-User-level MCP servers live in `~/.minimax/mcp.json` — the file next to `config.yaml`, not in the
-project. `mcp.example.json` in this repository is the template: copy it, replace `<HOME>` with your
-home directory, and fix the paths that are specific to your machine.
+User-level MCP servers live beside the host configuration, normally in
+`~/.minimax/mcp.json`. Use the separate [fresh initialization](#optional-fresh-mcp-configuration)
+only for a new file; update individual entries in an existing file instead of
+replacing it. The native plugin MCP servers are declared in the plugin packages.
 
 | Server                | Transport | What it does                                                      |
 | --------------------- | --------- | ----------------------------------------------------------------- |
@@ -219,30 +373,30 @@ dispatched with the `task` tool by name.
 exactly those two — nothing else, including MCP tools. There is no wildcard: `mcp__*` matches
 nothing, so MCP tools have to be listed one by one as `mcp__<server>__<tool>`.
 
-Two things worth knowing before you write a role:
+All 24 existing roles include the four exact control-task names:
 
-- **`disallowedTools` does not take effect** for custom agents in `mcode` 0.6.12 — a role with
-  `disallowedTools: [write, edit]` still gets `write` and `edit`. To withhold a tool, leave its
-  name out of `tools`.
-- **Omitting `tools` grants the whole session toolset**, but the runtime defers configured (MCP)
-  tools behind its tool-search once their combined schema grows, so a role without an explicit
-  list sees a subset of the MCP tools. Every role here therefore carries an explicit list: the
-  13 built-ins plus all 120 MCP tools.
+```text
+mcp__control-task__control_task_get
+mcp__control-task__control_task_set
+mcp__control-task__control_task_patch
+mcp__control-task__control_task_confirm
+```
 
-The read-only roles (`auditor`, `delegate`, `design-critic`, `design-verifier`,
-`evidence-auditor`) leave `write` and `edit` out of that list, so they keep read, search, shell
-and full MCP access but cannot change files. `scout`, `preplan-auditor` and `product-validator`
-add `write` and keep `edit` out, preserving their original omo tool sets. Everything else lists
-all 13 built-ins.
+The checked-in lists contain 122 explicitly named MCP tools, with 10, 11 or 13
+built-in tools depending on the role. An allowlist makes a tool eligible; the
+corresponding server must still load and expose it. Tool availability is not a
+fixed count in every session. Restart/reload the role definitions after an
+upgrade so child capability assembly sees the new operations.
 
-Two further constraints come from the runtime, not from the frontmatter: a subagent never gets
-`task`, `task_append`, `todowrite` or `ask_user`, and it cannot spawn subagents of its own.
-
-Known limits of an explicit list: the runtime also exposes MCP servers that are not in
-`mcp.json` — an internal task-management server (`mcp__taskmaster__*`) and a second alias of
-the FigJam bridge (`mcp__figjam-bridge__*`). Those are missing from the lists, and the number of
-reachable MCP tools therefore varies between roughly 99 and 165 depending on which servers came
-up in that particular session.
+The read-only role contracts (`auditor`, `delegate`, `design-critic`,
+`design-verifier`, `evidence-auditor`) omit the dedicated `write`, `edit` and
+`website_deploy` tools. `scout`, `preplan-auditor` and `product-validator` retain
+`write` while omitting `edit` and `website_deploy`; their original tool profiles
+are preserved. These are **tool selections and behavioral contracts, not a
+filesystem security boundary**: Bash and permitted MCP tools can still mutate
+files or other state. Enforce actual restrictions through host permissions,
+sandboxing and each role's authorized task scope. Do not infer that withholding
+`write`/`edit` makes shell access incapable of writing.
 
 ## License
 

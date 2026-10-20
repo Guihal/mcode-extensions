@@ -1,14 +1,18 @@
 {
   "schemaVersion": 1,
   "name": "agent-state",
-  "version": "0.1.0",
-  "description": "Reusable guide store for MiniMax Code: saves durable micro-skills that survive into future actions and re-delivers them into context.",
+  "version": "0.2.0",
+  "description": "Session-owned reusable guides: safe durable notes and verified immediate-parent sharing through trusted MiniMax hooks.",
   "author": "penis",
   "icon": "icon.png",
   "category": "Other",
   "exampleQueries": [],
   "apps": [],
-  "mcpServers": ["agent-state.mcp.json"],
+  "mcpServers": [
+    "agent-state.mcp.json"
+  ],
   "skills": [],
-  "hooks": ["hooks/hooks.json"]
+  "hooks": [
+    "hooks/hooks.json"
+  ]
 }

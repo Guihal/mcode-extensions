@@ -50,6 +50,8 @@ tools:
   - mcp__computer-use-linux__type_text
   - mcp__control-task__control_task_get
   - mcp__control-task__control_task_set
+  - mcp__control-task__control_task_patch
+  - mcp__control-task__control_task_confirm
   - mcp__figma-bridge__figjam_get_board_contents
   - mcp__figma-bridge__figjam_get_connections
   - mcp__figma-bridge__figma_capture_screenshot

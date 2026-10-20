@@ -23,7 +23,7 @@ Read [crystal.md](references/crystal.md) and write the source crystal. Keep §1 
 verbatim) and §3 (project context) immutable during the cycle; only §2 (agent hypotheses) is
 derived advice and may be repaired.
 
-The durable canonical task for the session lives in `mcp__control_task__control_task_set` — call
+The durable canonical task for the session lives in `mcp__control-task__control_task_set` — call
 it when the task definition materially changes. It is not the crystal: the crystal is the
 per-cycle source of intent, the control-task is the session-scoped anchor that survives compaction
 and restarts.

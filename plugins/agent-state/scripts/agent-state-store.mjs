@@ -1,376 +1,391 @@
-// agent-state-store.mjs — durable reusable-guide store for the agent-state plugin.
-//
-// A "guide" is a reusable micro-skill: a procedure, a verified environment
-// fact, a diagnostic recipe, an observed failure mode. It is NOT task state —
-// the canonical task lives in control-task.
-//
-// Guides are files under the session directory, so they survive compaction and
-// process restarts. Writes are atomic (tmp + rename) and serialized per
-// session, so a guide is never observed half-written.
-
+// Original Markdown is the guide authority. This module owns locked own-file
+// mutations, bounded collection and the mechanical receipt/recovery journal.
 import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, writeFileSync } from 'node:fs';
-import { basename, dirname, isAbsolute, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
+import {
+  RuntimeError, readRegular, inspectRegular, decodeRecord, listDirectory,
+  safeSessionId, withSessionLock, atomicWrite,
+} from './runtime/storage.mjs';
+import { assertReceiptFresh, resolveWorkspaceBinding, validateReceiptShape } from './runtime/host.mjs';
+import {
+  PLUGIN, CHECKPOINT_ID, validNoteId, noteRecord, slugifyTitle,
+  renderNoteFile, sha256Hex,
+} from './agent-state-core.mjs';
 
-export const MAX_TITLE_CHARS = 200;
-export const MAX_NOTE_BODY_BYTES = 128 * 1024;
-export const MAX_ANCHOR_BYTES = 80000;
-export const MAX_INJECT_BYTES = 80000;
+export const MAX_GUIDES_PER_SESSION = 512;
+export const MAX_COLLECTED_GUIDES = 1024;
+export const MAX_GUIDE_HASH_BYTES = 256 * 1024;
+export const MAX_EVENT_HASH_BYTES = 256 * 1024 * 1024;
+export const MAX_GUIDE_PREFIX_BYTES = 80000;
+export const MAX_OPERATION_RECORDS = 1024;
+export const MAX_STATE_BYTES = 2 * 1024 * 1024;
+export const STATE_FILENAME = '.agent-state.json';
+export const INDEX_FILENAME = '.guide-locators.json';
+const HASH = /^[a-f0-9]{64}$/u;
+const OPERATIONS = new Set(['agent_state_note', 'agent_state_checkpoint']);
+const OUTCOME_STATUSES = new Set(['committed', 'unchanged', 'rejected', 'unavailable', 'partial', 'uncertain']);
+const validId = (value) => typeof value === 'string' && value.length > 0 && value.length <= 512 && !/[\x00-\x1f\x7f]/u.test(value);
+const safeCode = (error) => typeof error?.code === 'string' && /^[A-Z0-9_]{1,80}$/u.test(error.code) ? error.code : 'GUIDE_STORAGE_UNAVAILABLE';
+function metadataPrefix(value, limit) {
+  const prefix = value.slice(0, limit);
+  return prefix.isWellFormed() ? prefix : prefix.slice(0, -1);
+}
 
-export const SAVE_CATEGORIES = [
-  'reusable procedures',
-  'verified tool/API/environment facts and source locations',
-  'diagnostic and verification recipes',
-  'observed failure modes and pitfalls',
-  'proven fixes and workarounds',
-  'rejected approaches with evidence',
-  'reusable decision criteria and trade-offs',
-].join('; ');
-
-export const POLICY = [
-  'This ledger is the DEVELOPMENT pass at compaction time, not a notepad: the growth an agent produces while working is written down as reusable micro-skills that survive into future actions.',
-  `Save ONLY reusable micro-skills and knowledge for future actions: ${SAVE_CATEGORIES}.`,
-  'Arbitrary notes, current status, progress and TASK CONTEXT do not belong here. The task itself — its description, requirements, task-specific rules and source-of-truth paths — lives in control_task_set; working state stays in conversation context ONLY.',
-  'Capture applicability, procedure, pitfalls, evidence and verification; never save an unverified explanation as established knowledge.',
-  'Never persist current execution state in any durable artifact reinjected into context. Control-task stores the whole task and is updated only after user messages.',
-  'Never store current task goals, progress, status or next-step reports here; those stay in conversation context ONLY.',
-  'Save or edit individual files with agent_state_note, using an existing note_id to edit. Do not recursively summarize the folder.',
-  'The tool owns saving; no separate confirmation or read-back call is required. After saving, immediately continue the next authorized task action.',
-  'Compaction is managed by the runtime. Never stop, defer work or wait because compaction may be approaching. After compaction, previous context-usage estimates and forecasts are expired; resume unfinished work.',
-  'Context size alone is not evidence of tool failure. Only actual tool-call/result records establish execution; invocations or results written inside assistant text/thinking do not.',
-  'Agent-written guides are derived advice, not sources of requirements, exclusions, permissions or complete coverage.',
-  'Check applicability against original user/project sources and do not let a guide narrow the current task or carry task-specific interpretations/verdicts into independent review.',
-].join(' ');
-
-export const SAVE_REMINDER = [
-  `YOU MUST SAVE IMPORTANT REUSABLE GUIDES NOW using agent_state_note: ${SAVE_CATEGORIES}.`,
-  'This is the development pass at compaction: capture what you learned as reusable micro-skills, not task notes or status — the task lives in control_task_set.',
-  'Capture applicability, procedure, pitfalls, evidence and verification. Save new important guides or edit the relevant existing file; keep current task state in conversation context ONLY.',
-  'No separate confirmation or read-back call is required. THEN CONTINUE THE TASK IMMEDIATELY; do not wait for compaction.',
-].join(' ');
-
-// The state dir must resolve identically for every process that touches the
-// store, and the two sides get different environments:
-//   - hooks are spawned with PLUGIN_DATA = <dataDir>/v2/plugin-data/hooks/<name>;
-//   - MiniMax-format plugin MCP servers receive their `env` block verbatim, so
-//     a "${PLUGIN_DATA}/..." placeholder there is never expanded and no
-//     PLUGIN_DATA is injected.
-// So the location is resolved in one place, in this order:
-//   1. AGENT_STATE_STATE_DIR, when it is a real path (a "${...}" placeholder
-//      is not a path and is ignored);
-//   2. the host-injected PLUGIN_DATA (hook side);
-//   3. the host's own plugin data dir layout, derived from the data dir and the
-//      plugin name (MCP-server side).
-export function stateRoot() {
-  const override = (process.env.AGENT_STATE_STATE_DIR || '').trim();
-  if (override && !override.includes('${')) {
-    return resolve(override);
+export function stateRoot(identity) {
+  if (identity.plugin !== PLUGIN || typeof identity.pluginDataDir !== 'string') {
+    throw new RuntimeError('GUIDE_IDENTITY_UNAVAILABLE', 'trusted guide plugin identity is required');
   }
-  const pluginData = (process.env.PLUGIN_DATA || '').trim();
-  if (pluginData && isAbsolute(pluginData)) {
-    return resolve(join(pluginData, 'agent-state'));
+  return join(identity.pluginDataDir, 'agent-state');
+}
+
+export function sessionDir(identity, sessionId = identity.sessionId) {
+  return join(stateRoot(identity), 'sessions', safeSessionId(sessionId));
+}
+
+export function parseHeader(content) {
+  const empty = { shared: false, title: null, updated: null };
+  const lines = content.split('\n');
+  const first = lines.findIndex((line) => line.trim());
+  if (first < 0) return empty;
+  const flag = /^\s*shared\s*:\s*(true|false)\s*$/iu.exec(lines[first]);
+  if (!flag) return empty;
+  const result = { ...empty, shared: flag[1].toLowerCase() === 'true' };
+  for (let i = first + 1; i < Math.min(lines.length, first + 6); i += 1) {
+    const title = /^\s*title\s*:\s*(.+?)\s*$/iu.exec(lines[i]);
+    const updated = /^\s*updated\s*:\s*(.+?)\s*$/iu.exec(lines[i]);
+    if (title) result.title = metadataPrefix(title[1], 200);
+    else if (updated) result.updated = metadataPrefix(updated[1], 100);
+    else break;
   }
-  return resolve(join(dataDir(), 'v2', 'plugin-data', 'hooks', pluginName(), 'agent-state'));
-}
-
-function dataDir() {
-  const fromEnv = (process.env.MINIMAX_DATA_DIR || '').trim();
-  return fromEnv && isAbsolute(fromEnv) ? fromEnv : join(process.env.HOME || '.', '.minimax');
-}
-
-/** Plugin name as the host sanitizes it: manifest name first, plugin dir name second. */
-function pluginName() {
-  if (!cachedPluginName) {
-    const root = dirname(dirname(fileURLToPath(import.meta.url)));
-    cachedPluginName = sanitizeName(manifestName(root) || basename(root));
-  }
-  return cachedPluginName;
-}
-
-let cachedPluginName = null;
-
-function manifestName(root) {
-  try {
-    const parsed = JSON.parse(readFileSync(join(root, '.minimax-plugin', 'plugin.json'), 'utf8'));
-    return typeof parsed.name === 'string' ? parsed.name : null;
-  } catch {
-    return null;
-  }
-}
-
-function sanitizeName(name) {
-  return String(name).replace(/[^A-Za-z0-9._-]/gu, '_').slice(0, 80) || 'plugin';
-}
-
-export function sessionDir(sessionId) {
-  return join(stateRoot(), 'sessions', safeSessionId(sessionId));
-}
-
-export function safeSessionId(value) {
-  const id = String(value ?? '').trim();
-  if (!id || id.length > 128 || !/^[A-Za-z0-9._-]+$/.test(id)) {
-    throw new Error(`invalid session id: ${JSON.stringify(id)}`);
-  }
-  return id;
-}
-
-export function activePointerPath() {
-  return join(stateRoot(), 'active.json');
-}
-
-export function readActiveSession() {
-  const file = activePointerPath();
-  if (!existsSync(file)) return null;
-  try {
-    const parsed = JSON.parse(readFileSync(file, 'utf8'));
-    return parsed && typeof parsed.sessionId === 'string' ? parsed.sessionId : null;
-  } catch {
-    return null;
-  }
-}
-
-export function writeActiveSession(sessionId) {
-  let id;
-  try {
-    id = safeSessionId(sessionId);
-  } catch {
-    return false;
-  }
-  try {
-    mkdirSync(stateRoot(), { recursive: true });
-    writeFileSync(
-      activePointerPath(),
-      `${JSON.stringify({ sessionId: id, at: new Date().toISOString() }, null, 2)}\n`,
-      'utf8',
-    );
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-const LONE_SURROGATE =
-  /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?:[^\uD800-\uDBFF]|^)[\uDC00-\uDFFF]/;
-
-export function isWellFormedText(value) {
-  return !LONE_SURROGATE.test(value);
-}
-
-export class InvalidArgumentsError extends Error {}
-
-function requireObject(args, allowed) {
-  if (!args || typeof args !== 'object' || Array.isArray(args)) {
-    throw new InvalidArgumentsError('arguments must be an object');
-  }
-  const unknown = Object.keys(args).find((key) => !allowed.includes(key));
-  if (unknown) throw new InvalidArgumentsError(`unknown argument: ${unknown}`);
-}
-
-function validText(value, name, limit) {
-  if (typeof value !== 'string' || !value.trim() || !isWellFormedText(value)) {
-    throw new InvalidArgumentsError(`${name} must be non-empty valid UTF-8 text`);
-  }
-  if (Buffer.byteLength(value) > limit) {
-    throw new InvalidArgumentsError(`${name} exceeds ${limit} bytes`);
-  }
-}
-
-export function validateNoteArguments(args) {
-  requireObject(args, ['title', 'body', 'shared', 'note_id']);
-  validText(args.title, 'title', 800);
-  validText(args.body, 'body', MAX_NOTE_BODY_BYTES);
-  if (args.title.length > MAX_TITLE_CHARS || /[\x00-\x1f\x7f]/.test(args.title)) {
-    throw new InvalidArgumentsError('invalid title length/header control character');
-  }
-  if (args.shared !== undefined && typeof args.shared !== 'boolean') {
-    throw new InvalidArgumentsError('shared must be boolean');
-  }
-  if (
-    args.note_id !== undefined &&
-    (typeof args.note_id !== 'string' ||
-      !isWellFormedText(args.note_id) ||
-      !args.note_id.endsWith('.md') ||
-      args.note_id !== basename(args.note_id) ||
-      /[\\/\x00-\x1f\x7f]/.test(args.note_id) ||
-      Buffer.byteLength(args.note_id) > 255)
-  ) {
-    throw new InvalidArgumentsError('note_id must be an existing own .md file index, not a path');
-  }
-  return {
-    title: args.title.trim(),
-    body: args.body,
-    shared: args.shared === true,
-    noteId: args.note_id,
-    bodyHash: sha256Hex(args.body.trimEnd()),
-  };
-}
-
-export function validateCheckpointArguments(args) {
-  requireObject(args, ['content']);
-  validText(args.content, 'content', MAX_ANCHOR_BYTES);
-  return { content: args.content, bodyHash: sha256Hex(args.content.trimEnd()) };
-}
-
-export function sha256Hex(text) {
-  return createHash('sha256').update(text).digest('hex');
-}
-
-export function slugifyTitle(title) {
-  return (
-    title
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, 48)
-      .replace(/-+$/g, '') || 'note'
-  );
-}
-
-export function renderNoteFile(record) {
-  return `shared: ${record.shared ? 'true' : 'false'}\ntitle: ${record.title}\nupdated: ${new Date().toISOString()}\n---\n${record.body.trimEnd()}\n`;
+  return result;
 }
 
 export function bodyOf(content) {
   const lines = content.split('\n');
   let i = 0;
-  while (i < lines.length && !lines[i].trim()) i++;
-  if (/^\s*shared\s*:/i.test(lines[i] ?? '')) {
-    i++;
-    while (/^\s*(title|updated)\s*:/i.test(lines[i] ?? '')) i++;
-    if (lines[i]?.trim() === '---') i++;
+  while (i < lines.length && !lines[i].trim()) i += 1;
+  if (/^\s*shared\s*:\s*(true|false)\s*$/iu.test(lines[i] ?? '')) {
+    i += 1;
+    while (/^\s*(title|updated)\s*:/iu.test(lines[i] ?? '')) i += 1;
+    if (lines[i]?.trim() === '---') i += 1;
   }
   return lines.slice(i).join('\n').trimEnd();
 }
 
-function atomicWrite(file, contents) {
-  mkdirSync(resolve(file, '..'), { recursive: true });
-  const tmp = `${file}.${process.pid}.tmp`;
-  writeFileSync(tmp, contents, 'utf8');
-  renameSync(tmp, file);
+export function sessionFileNames(dir) {
+  const entries = listDirectory(dir, 4096) ?? [];
+  const names = entries.filter((entry) => !entry.name.startsWith('.') && entry.name.endsWith('.md') && !entry.isDirectory())
+    .map((entry) => entry.name).sort();
+  if (names.length > MAX_GUIDES_PER_SESSION) {
+    throw new RuntimeError('GUIDE_FILE_COUNT_LIMIT', 'session exceeds 512 guide files', { path: dir });
+  }
+  return names;
 }
 
-/**
- * Save one guide. Creating picks a slug name; editing requires the exact
- * existing note_id of this session.
- */
-export function commitNote(sessionId, record) {
-  const dir = sessionDir(sessionId);
-  let name = record.noteId;
-  if (name) {
-    const existing = join(dir, name);
-    if (!existsSync(existing)) {
-      throw new Error('note_id does not exist in this session');
+function inspectGuide(file, prefixBytes = MAX_GUIDE_PREFIX_BYTES) {
+  return inspectRegular(file, { prefixBytes, maxHashBytes: MAX_GUIDE_HASH_BYTES });
+}
+
+function emptyDelivery() {
+  return {
+    basis: 'completed_post_tool_use_v1', epoch: 0, completedOtherCalls: 0,
+    lastDigest: null, lastPresentationKey: null, refreshDue: true, seenTools: [],
+  };
+}
+
+function validateState(state, identity) {
+  if (!state || state.version !== 1 || state.sessionId !== identity.sessionId || !state.binding ||
+      !Array.isArray(state.operations) || state.operations.length > MAX_OPERATION_RECORDS) {
+    throw new RuntimeError('GUIDE_STATE_INVALID', 'guide mechanical state is invalid');
+  }
+  const d = state.delivery;
+  if (!d || d.basis !== 'completed_post_tool_use_v1' || !Number.isSafeInteger(d.epoch) || d.epoch < 0 ||
+      !Number.isSafeInteger(d.completedOtherCalls) || d.completedOtherCalls < 0 ||
+      !(d.lastDigest === null || HASH.test(d.lastDigest)) ||
+      !(d.lastPresentationKey === null || HASH.test(d.lastPresentationKey)) || typeof d.refreshDue !== 'boolean' ||
+      !Array.isArray(d.seenTools) || d.seenTools.length > 1024 || d.seenTools.some((v) => typeof v !== 'string' || !HASH.test(v))) {
+    throw new RuntimeError('GUIDE_STATE_INVALID', 'guide delivery state is invalid');
+  }
+  const toolIds = new Set();
+  const receiptIds = new Set();
+  for (const op of state.operations) {
+    if (!op || !validId(op.toolUseId) || !validId(op.receiptId) || !HASH.test(op.inputDigest) ||
+        !OPERATIONS.has(op.operation) || !Number.isSafeInteger(op.createdAt) || op.createdAt < 0 ||
+        !['pending', 'completed'].includes(op.state) || toolIds.has(op.toolUseId) || receiptIds.has(op.receiptId)) {
+      throw new RuntimeError('GUIDE_STATE_INVALID', 'guide receipt journal is invalid');
+    }
+    try {
+      validateReceiptShape({ receiptVersion: 1, status: 'pending_host_commit', plugin: PLUGIN,
+        operation: op.operation, receiptId: op.receiptId, createdAt: op.createdAt, inputDigest: op.inputDigest });
+    } catch { throw new RuntimeError('GUIDE_STATE_INVALID', 'guide persisted receipt is invalid'); }
+    toolIds.add(op.toolUseId); receiptIds.add(op.receiptId);
+    if (op.state === 'pending') {
+      if (!validNoteId(op.note_id) || !HASH.test(op.intendedDigest) ||
+          !(op.beforeDigest === null || HASH.test(op.beforeDigest)) || typeof op.beforeMissing !== 'boolean') {
+        throw new RuntimeError('GUIDE_STATE_INVALID', 'guide pending target is invalid');
+      }
+    } else if (!op.outcome || !OUTCOME_STATUSES.has(op.outcome.status) || typeof op.outcome.committed !== 'boolean' ||
+        (op.outcome.note_id !== undefined && !validNoteId(op.outcome.note_id)) ||
+        (op.outcome.committed && (!validNoteId(op.outcome.note_id) || !['committed', 'unchanged', 'partial'].includes(op.outcome.status))) ||
+        typeof op.outcome.code !== 'string' || !/^[A-Z0-9_]{1,80}$/u.test(op.outcome.code) ||
+        !Number.isSafeInteger(op.completedAt) || op.completedAt < 0) {
+      throw new RuntimeError('GUIDE_STATE_INVALID', 'guide completed outcome is invalid');
+    }
+  }
+  return state;
+}
+
+function loadState(dir, identity, lineage) {
+  const file = join(dir, STATE_FILENAME);
+  const old = readRegular(file, MAX_STATE_BYTES);
+  let state;
+  if (!old) {
+    state = { version: 1, sessionId: identity.sessionId, binding: null, operations: [], delivery: emptyDelivery() };
+  } else {
+    try { state = validateState(JSON.parse(decodeRecord(old)), identity); }
+    catch (error) {
+      if (error instanceof RuntimeError) throw error;
+      throw new RuntimeError('GUIDE_STATE_INVALID', 'guide mechanical state is unreadable', { path: file });
+    }
+  }
+  state.binding = resolveWorkspaceBinding(state.binding, identity, lineage);
+  return state;
+}
+
+export async function withGuideSession(identity, lineage, action) {
+  const dir = sessionDir(identity);
+  return withSessionLock(dir, async () => {
+    const state = loadState(dir, identity, lineage);
+    const context = {
+      identity, lineage, dir, state,
+      persist() {
+        const bytes = Buffer.from(`${JSON.stringify(state)}\n`);
+        if (bytes.length > MAX_STATE_BYTES) {
+          throw new RuntimeError('GUIDE_STATE_LIMIT', 'guide mechanical state bound reached', { path: join(dir, STATE_FILENAME) });
+        }
+        return atomicWrite(join(dir, STATE_FILENAME), bytes);
+      },
+    };
+    return action(context);
+  });
+}
+
+function materializeOutcome(context, outcome) {
+  return { ...outcome, ...(outcome.note_id ? { path: join(context.dir, outcome.note_id) } : {}) };
+}
+
+function completeOperation(context, operation, outcome, now) {
+  operation.state = 'completed';
+  operation.completedAt = now;
+  operation.outcome = outcome;
+  delete operation.beforeDigest;
+  delete operation.beforeMissing;
+  delete operation.intendedDigest;
+  delete operation.note_id;
+  if (outcome.committed) context.state.delivery.refreshDue = true;
+}
+
+// Recovery runs before admission/expiry/reclamation and before another save can
+// overwrite a pending target. It observes the authoritative file, never repeats
+// a mutation. Unknown content leaves the pending record retained and blocks saves.
+export function recoverPendingOperations(context, now = Date.now()) {
+  const unresolved = [];
+  let changed = false;
+  for (const operation of context.state.operations) {
+    if (operation.state !== 'pending') continue;
+    const file = join(context.dir, operation.note_id);
+    let current;
+    try { current = inspectGuide(file, 0); }
+    catch (error) {
+      unresolved.push({ code: safeCode(error), path: file });
+      continue;
+    }
+    if (current?.hashComplete && current.hash === operation.intendedDigest) {
+      completeOperation(context, operation, { status: 'committed', committed: true, note_id: operation.note_id, code: 'GUIDE_SAVE_RECOVERED' }, now);
+      changed = true;
+    } else if ((!current && operation.beforeMissing) ||
+        (current?.hashComplete && operation.beforeDigest !== null && current.hash === operation.beforeDigest)) {
+      completeOperation(context, operation, { status: 'unavailable', committed: false, code: 'INTERRUPTED_SAVE_NOT_RETAINED' }, now);
+      changed = true;
+    } else {
+      unresolved.push({ code: 'GUIDE_RECOVERY_CONFLICT', path: file });
+    }
+  }
+  if (changed) {
+    try { context.persist(); }
+    catch {
+      context.recoveryPersistFailed = true;
+      unresolved.push({ code: 'GUIDE_RECOVERY_JOURNAL_UNAVAILABLE', path: join(context.dir, STATE_FILENAME) });
+    }
+  }
+  return unresolved;
+}
+
+function selectTarget(context, record) {
+  const names = sessionFileNames(context.dir);
+  let name = record.note_id;
+  let before;
+  if (record.checkpoint) {
+    name = CHECKPOINT_ID;
+    before = inspectGuide(join(context.dir, name), MAX_GUIDE_HASH_BYTES);
+  } else if (name) {
+    before = inspectGuide(join(context.dir, name), MAX_GUIDE_HASH_BYTES);
+    if (!before) {
+      throw new RuntimeError('GUIDE_NOTE_NOT_FOUND', 'note_id is not an existing own regular guide', { status: 'rejected' });
     }
   } else {
     const slug = slugifyTitle(record.title);
-    const existingNames = existsSync(dir)
-      ? readdirSync(dir).filter((n) => n.endsWith('.md'))
-      : [];
-    for (let n = 1; n <= 99; n += 1) {
-      const candidate = `${slug}${n === 1 ? '' : `-${n}`}.md`;
-      const file = join(dir, candidate);
-      let sameBody = false;
-      if (existsSync(file)) {
-        try {
-          sameBody = sha256Hex(bodyOf(readFileSync(file, 'utf8'))) === record.bodyHash;
-        } catch {
-          sameBody = false;
-        }
-      }
-      if (!existsSync(file) || sameBody) {
-        name = candidate;
-        break;
+    for (let i = 1; i <= 99; i += 1) {
+      const candidate = `${slug}${i === 1 ? '' : `-${i}`}.md`;
+      const current = inspectGuide(join(context.dir, candidate), MAX_GUIDE_HASH_BYTES);
+      if (!current || (current.hashComplete && sha256Hex(bodyOf(decodeRecord(current))) === record.bodyHash)) {
+        name = candidate; before = current; break;
       }
     }
     if (!name) {
-      throw new Error('guide title collision limit reached; use an existing note_id');
-    }
-    if (!existingNames.includes(name) && existingNames.length >= 512) {
-      throw new Error('guide file count bound reached');
+      throw new RuntimeError('GUIDE_TITLE_COLLISION_LIMIT', 'title collision limit reached; use an exact own note_id', { status: 'rejected' });
     }
   }
-  const file = join(dir, name);
-  atomicWrite(file, renderNoteFile(record));
-  return { note_id: name, path: file };
+  if (!before && !names.includes(name) && names.length >= MAX_GUIDES_PER_SESSION) {
+    throw new RuntimeError('GUIDE_FILE_COUNT_LIMIT', 'session has reached 512 guide files', { status: 'rejected', path: context.dir });
+  }
+  return { name, before };
 }
 
-export function readGuides(sessionId) {
-  const dir = sessionDir(sessionId);
-  if (!existsSync(dir)) return [];
+function rejected(error) {
+  return { status: error?.status === 'rejected' ? 'rejected' : 'unavailable', committed: false, code: safeCode(error) };
+}
+
+export function executeGuideOperation(context, { receipt, operation, args }, now = Date.now()) {
+  const unresolved = recoverPendingOperations(context, now);
+  const toolUseId = context.identity.toolUseId;
+  if (!validId(toolUseId)) throw new RuntimeError('GUIDE_TOOL_ID_UNAVAILABLE', 'trusted tool-use identity is required');
+  const old = context.state.operations.find((item) => item.toolUseId === toolUseId || item.receiptId === receipt.receiptId);
+  if (old) {
+    if (old.toolUseId !== toolUseId || old.receiptId !== receipt.receiptId || old.inputDigest !== receipt.inputDigest || old.operation !== operation || old.createdAt !== receipt.createdAt) {
+      return { status: 'rejected', committed: false, code: 'GUIDE_RECEIPT_REUSE_CONFLICT' };
+    }
+    if (old.state === 'completed') return {
+      ...materializeOutcome(context, old.outcome), replayed: true,
+      ...(context.recoveryPersistFailed ? { status: old.outcome.committed ? 'partial' : 'unavailable', recoveryRequired: true } : {}),
+    };
+    return { status: 'uncertain', committed: false, code: 'GUIDE_RECOVERY_CONFLICT', path: join(context.dir, old.note_id), pending: true };
+  }
+  if (unresolved.length) {
+    return { status: 'unavailable', committed: false, code: 'GUIDE_PENDING_RECOVERY_REQUIRED', path: unresolved[0].path };
+  }
+  try { assertReceiptFresh(receipt, { now }); }
+  catch (error) { return { ...rejected(error), code: safeCode(error), notAdmitted: true }; }
+  // Only expired completed records can be reclaimed, and only when capacity
+  // requires it. Pending records have already been recovered or blocked above.
+  if (context.state.operations.length >= MAX_OPERATION_RECORDS) {
+    context.state.operations = context.state.operations.filter((item) =>
+      item.state !== 'completed' || now - item.createdAt <= 65000);
+  }
+  if (context.state.operations.length >= MAX_OPERATION_RECORDS) {
+    return { status: 'unavailable', committed: false, code: 'GUIDE_OPERATION_LIMIT' };
+  }
+  const entry = { toolUseId, receiptId: receipt.receiptId, inputDigest: receipt.inputDigest, operation, createdAt: receipt.createdAt, state: 'pending' };
+  let target;
+  let contents;
+  try {
+    const record = noteRecord(operation, args);
+    target = selectTarget(context, record);
+    contents = renderNoteFile(record, now);
+  } catch (error) {
+    completeOperation(context, entry, rejected(error), now);
+    context.state.operations.push(entry);
+    context.persist();
+    return materializeOutcome(context, entry.outcome);
+  }
+  entry.note_id = target.name;
+  entry.beforeDigest = target.before?.hashComplete ? target.before.hash : null;
+  entry.beforeMissing = !target.before;
+  entry.intendedDigest = sha256Hex(contents);
+  context.state.operations.push(entry);
+  // The chosen target must be recoverable before the authoritative file changes.
+  context.persist();
+  const file = join(context.dir, target.name);
+  let outcome;
+  try {
+    const result = atomicWrite(file, contents);
+    outcome = { status: result.status, committed: true, note_id: target.name, code: 'GUIDE_SAVED' };
+  } catch (error) {
+    if (error?.committed) {
+      try {
+        const current = inspectGuide(file, 0);
+        if (current?.hashComplete && current.hash === entry.intendedDigest) {
+          outcome = { status: 'partial', committed: true, note_id: target.name, code: 'GUIDE_COMMITTED_WITH_DURABILITY_WARNING' };
+        }
+      } catch { /* The pending record remains the recovery authority. */ }
+      if (!outcome) return { status: 'uncertain', committed: false, code: 'GUIDE_WRITE_REQUIRES_RECOVERY', path: file, pending: true };
+    } else outcome = rejected(error);
+  }
+  completeOperation(context, entry, outcome, now);
+  try { context.persist(); }
+  catch {
+    return { ...materializeOutcome(context, outcome), status: outcome.committed ? 'partial' : 'unavailable', code: 'GUIDE_RECEIPT_REFRESH_FAILED', recoveryRequired: true };
+  }
+  return materializeOutcome(context, outcome);
+}
+
+// The native adapter supplies one current child/parent snapshot. No cached
+// parent, model field, shared cwd, history scan or global pointer is consulted.
+export function collectGuides(identity, lineage) {
   const files = [];
-  for (const name of readdirSync(dir).sort()) {
-    if (!name.endsWith('.md')) continue;
-    const file = join(dir, name);
-    let content;
-    try {
-      content = readFileSync(file, 'utf8');
-    } catch {
-      continue;
+  const issues = [];
+  let hashedBytes = 0;
+  const collect = (sessionId, origin, sharedOnly) => {
+    const dir = sessionDir(identity, sessionId);
+    let names;
+    try { names = sessionFileNames(dir); }
+    catch (error) { issues.push({ code: safeCode(error), path: dir, origin }); return; }
+    for (const name of names) {
+      const file = join(dir, name);
+      let record;
+      try {
+        record = inspectGuide(file);
+        if (!record) throw new RuntimeError('GUIDE_DISAPPEARED', 'guide disappeared during collection');
+        hashedBytes += record.hashComplete ? record.size : 0;
+        if (hashedBytes > MAX_EVENT_HASH_BYTES) throw new RuntimeError('GUIDE_EVENT_HASH_LIMIT', 'guide event hash bound reached');
+        const content = decodeRecord(record);
+        const header = parseHeader(content);
+        if (sharedOnly && !header.shared) continue;
+        files.push({
+          name, path: file, origin, sessionId, ...header, content, bytes: record.size,
+          hash: record.hashComplete ? record.hash : null, hashComplete: record.hashComplete,
+          partial: record.partial, status: record.hashComplete ? 'available' : 'freshness_unavailable',
+        });
+        if (!record.hashComplete) issues.push({ code: 'GUIDE_FILE_HASH_LIMIT', path: file, origin });
+      } catch (error) {
+        // An unreadable parent header cannot grant sharing. Reveal only the
+        // already-verified parent directory, never an unverified private note
+        // locator. Own unreadable originals retain their exact file locators.
+        issues.push({ code: safeCode(error), path: sharedOnly ? dir : file, origin });
+        if (!sharedOnly) files.push({ name, path: file, origin, sessionId, shared: false, title: null, updated: null, content: '', bytes: record?.size ?? null, hash: null, hashComplete: false, partial: true, status: 'unavailable' });
+      }
     }
-    const head = content.split('\n').slice(0, 4).join('\n');
-    const shared = /^\s*shared\s*:\s*true/im.test(head);
-    const titleMatch = /^\s*title\s*:\s*(.+)$/im.exec(head);
-    files.push({
-      name,
-      path: file,
-      title: titleMatch ? titleMatch[1].trim() : null,
-      shared,
-      content,
-      bytes: Buffer.byteLength(content, 'utf8'),
-    });
+  };
+  collect(identity.sessionId, 'own', false);
+  if (lineage?.status === 'ok' && lineage.currentVerified === true && lineage.current?.sessionId === identity.sessionId && lineage.current.workspaceDir === identity.workspaceDir) {
+    const parentId = lineage.current.parentSessionId;
+    if (parentId && lineage.parent?.sessionId === parentId && parentId !== identity.sessionId) collect(parentId, 'parent', true);
+    else if (parentId) issues.push({ code: 'GUIDE_PARENT_UNAVAILABLE', path: sessionDir(identity, parentId), origin: 'parent' });
+  } else {
+    issues.push({ code: lineage?.code ?? 'NATIVE_LINEAGE_UNAVAILABLE', path: lineage?.path ?? identity.pluginDataDir, origin: 'lineage' });
   }
-  return files;
-}
-
-export function digestOf(files) {
+  if (files.length > MAX_COLLECTED_GUIDES) throw new RuntimeError('GUIDE_COLLECTION_LIMIT', 'guide collection exceeds 1024 files');
   const hash = createHash('sha256');
   for (const file of files) {
-    hash.update(JSON.stringify([file.path, file.name, file.shared, file.title, file.bytes, file.content]));
+    hash.update(JSON.stringify([file.path, file.name, file.shared, file.title, file.bytes, file.hash, file.hashComplete]));
     hash.update('\0');
   }
-  return hash.digest('hex');
-}
-
-export function utf8Prefix(value, limit) {
-  const buffer = Buffer.from(value);
-  let end = Math.max(0, Math.min(buffer.length, Math.floor(limit)));
-  while (end > 0 && end < buffer.length && (buffer[end] & 0xc0) === 0x80) {
-    end -= 1;
-  }
-  return buffer.subarray(0, end).toString('utf8');
-}
-
-/**
- * Assemble the guide body within a UTF-8 byte budget. Every cut or skipped
- * file keeps its full path in the footer, so a truncated delivery never loses
- * the locator.
- */
-export function buildInjection({ files, maxBytes = MAX_INJECT_BYTES, preamble = '' }) {
-  const cap = Math.min(MAX_INJECT_BYTES, Math.floor(maxBytes));
-  if (!Number.isFinite(cap) || cap < 1) throw new Error('invalid injection limits');
-  const heading = (file) =>
-    `\n\nFile ${file.name}${file.title ? `: ${file.title}` : ''}\n${file.path}\n`;
-  const footer = (omitted) =>
-    '\n\nINJECTION TRUNCATED. Original files retained; read these full paths when needed:\n' +
-    omitted.map((file) => file.path).join('\n');
-  let available = cap - Buffer.byteLength(preamble, 'utf8') - Buffer.byteLength(footer(files), 'utf8');
-  if (available < 0) return preamble + footer(files);
-  let text = preamble;
-  const omitted = [];
-  for (const file of files) {
-    const head = heading(file);
-    if (available <= Buffer.byteLength(head, 'utf8')) {
-      omitted.push(file);
-      continue;
-    }
-    const body = utf8Prefix(file.content, available - Buffer.byteLength(head, 'utf8'));
-    const part = head + body;
-    text += part;
-    available -= Buffer.byteLength(part, 'utf8');
-    if (Buffer.byteLength(body, 'utf8') < file.bytes) omitted.push(file);
-  }
-  const result = text + footer(omitted);
-  if (Buffer.byteLength(result, 'utf8') > cap) throw new Error('injection exceeded byte limit');
-  return result;
+  const complete = issues.length === 0 && files.every((file) => file.hashComplete);
+  const contentFingerprint = hash.digest('hex');
+  const presentationKey = sha256Hex(JSON.stringify([
+    complete, contentFingerprint,
+    files.filter((file) => !file.hashComplete).map((file) => [file.path, file.bytes, sha256Hex(file.content)]),
+    issues.map((issue) => [issue.code, issue.path]),
+  ]));
+  return { files, issues, complete, digest: complete ? contentFingerprint : null, presentationKey, hashedBytes };
 }
