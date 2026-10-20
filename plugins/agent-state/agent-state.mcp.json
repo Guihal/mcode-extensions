@@ -4,8 +4,10 @@
     "agent-state": {
       "type": "stdio",
       "command": "node",
-      "args": ["./scripts/agent-state.mjs"],
-      "description": "Durable reusable-guide store for MiniMax Code sessions."
+      "args": [
+        "./scripts/agent-state.mjs"
+      ],
+      "description": "Stateless pending receipts for reusable-guide operations; the trusted native PostToolUse hook supplies the definitive session-owned result."
     }
   }
 }

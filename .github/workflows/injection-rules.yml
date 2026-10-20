@@ -1,4 +1,4 @@
-name: Injection rules
+name: Existing extensions
 
 on:
   pull_request:
@@ -22,4 +22,9 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: ${{ matrix.node }}
-      - run: node --test tests/injection-rules.test.mjs
+      - name: Check included runtime copies
+        run: node scripts/sync-plugin-runtime.mjs --check
+      - name: Check the Linux lock helper
+        run: /usr/bin/flock --version
+      - name: Run all ordinary extension checks
+        run: node --test tests/*.test.mjs

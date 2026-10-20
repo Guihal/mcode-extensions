@@ -9,7 +9,7 @@
         "PROBE_LITERAL": "literal-ok",
         "PROBE_EXPANDED": "${PLUGIN_DATA}"
       },
-      "description": "Probe MCP server used to verify the plugin MCP lane."
+      "description": "Default-off probe MCP server. Both lanes use packaged probe.config.json; enabled echo confirms its actual bounded metadata-log write."
     }
   }
 }

@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "name": "control-task",
-  "version": "0.1.0",
-  "description": "Durable canonical task anchor for MiniMax Code: stores the whole task per session and re-injects it on every turn, so the task survives compaction and restarts.",
+  "version": "0.2.0",
+  "description": "Durable session task with atomic revisions, explicit prompt reconciliation and bounded checkpoints; restored at supported MiniMax lifecycle boundaries.",
   "author": "penis",
   "icon": "icon.png",
   "category": "Other",

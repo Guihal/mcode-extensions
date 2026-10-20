@@ -5,7 +5,7 @@
       "type": "stdio",
       "command": "node",
       "args": ["./scripts/control-task.mjs"],
-      "description": "Durable canonical task store for MiniMax Code sessions."
+      "description": "Pending control-task receipts; the trusted native PostToolUse hook performs each session operation and appends its definitive result."
     }
   }
 }

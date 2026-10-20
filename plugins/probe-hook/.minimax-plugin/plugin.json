@@ -1,8 +1,8 @@
 {
   "schemaVersion": 1,
   "name": "probe-hook",
-  "version": "0.0.1",
-  "description": "Throwaway probe plugin: verifies that a local plugin hook runs and its additionalContext is assembled.",
+  "version": "0.1.0",
+  "description": "Default-off diagnostic plugin. Enable the packaged configuration and reload to verify native hook, MCP and skill loading with bounded metadata logs.",
   "author": "local-probe",
   "icon": "icon.png",
   "category": "Other",
