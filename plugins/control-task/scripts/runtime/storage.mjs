@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { basename, dirname, isAbsolute, join, normalize } from 'node:path';
+import { iterateDirectory } from './directory.mjs';
 
 export const MAX_STORAGE_BYTES = 16 * 1024 * 1024;
 export const MAX_DIAGNOSTIC_BYTES = 512;
@@ -45,7 +46,7 @@ function storageError(error, code, path, extra = {}) {
   });
 }
 
-// Linux has no openat API in Node. Resolve each directory relative to a pinned
+// The filesystem API has no openat. Resolve each directory relative to a pinned
 // descriptor through procfs, with O_NOFOLLOW at every step. A rename or symlink
 // replacement cannot redirect subsequent file access to another directory.
 function openDirectory(directory, create = false) {
@@ -186,18 +187,15 @@ export function listDirectory(path, limit = 4096) {
   boundedSize(limit, 4096);
   const fd = openDirectory(path);
   if (fd === null) return null;
-  let directory;
   try {
-    directory = fs.opendirSync(`/proc/self/fd/${fd}`);
     const entries = [];
-    let entry;
-    while ((entry = directory.readSync()) !== null) {
+    for (const entry of iterateDirectory(`/proc/self/fd/${fd}`)) {
       if (entries.length === limit) throw new RuntimeError('DIRECTORY_LIMIT', 'The directory exceeds the entry bound.', { path });
       entries.push(entry);
     }
     return entries;
   } catch (error) { throw storageError(error, 'DIRECTORY_UNAVAILABLE', path); }
-  finally { directory?.closeSync(); fs.closeSync(fd); }
+  finally { fs.closeSync(fd); }
 }
 
 function contentBytes(content) {

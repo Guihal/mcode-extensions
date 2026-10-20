@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // The native hook is the only session owner. The corresponding stateless MCP
 // receipt remains visibly pending unless this hook supplies a definitive result.
 import { join, resolve } from 'node:path';

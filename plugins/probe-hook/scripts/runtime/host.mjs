@@ -3,6 +3,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import { dirname, join } from 'node:path';
+import { iterateDirectory } from './directory.mjs';
 import { RuntimeError, withRegularDescriptor, safeAbsolutePath, safeSessionId } from './storage.mjs';
 import { checkJsonShape, isPlainObject, MAX_RPC_LINE_BYTES } from './transport.mjs';
 
@@ -121,12 +122,10 @@ function decodeNativeRow(row, requestedId) {
 }
 
 function regularDescriptors() {
-  const directory = fs.opendirSync('/proc/self/fd');
   const descriptors = new Map();
   let count = 0;
   try {
-    let entry;
-    while ((entry = directory.readSync()) !== null) {
+    for (const entry of iterateDirectory('/proc/self/fd')) {
       if (++count > 4096) throw new RuntimeError('NATIVE_DESCRIPTOR_LIMIT', 'The native reader descriptor inventory is unavailable.');
       if (!/^\d+$/.test(entry.name)) continue;
       const fd = Number(entry.name);
@@ -136,7 +135,11 @@ function regularDescriptors() {
       } catch (error) { if (error.code !== 'EBADF') throw error; }
     }
     return descriptors;
-  } finally { directory.closeSync(); }
+  } catch (error) {
+    if (error instanceof RuntimeError) throw error;
+    throw new RuntimeError('NATIVE_DESCRIPTOR_UNAVAILABLE', 'The native reader descriptor inventory is unavailable.',
+      { systemCode: error.code, cause: error });
+  }
 }
 
 /** Reads at most current + direct parent using one read-only V2 transaction. */

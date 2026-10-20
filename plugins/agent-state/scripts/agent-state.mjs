@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 // The host shares this MCP process across callers. It validates arguments and
 // returns a pending receipt only; it must never select or open session state.
 import { serveMcp } from './runtime/transport.mjs';

@@ -1,7 +1,7 @@
 // Pure control-task contracts. Transport and trusted identity live in runtime/.
 import { RuntimeError } from './runtime/storage.mjs';
 
-export const VERSION = '0.2.1';
+export const VERSION = '0.2.2';
 export const MAX_TASK_BODY = 12000;
 export const MAX_REASON = 1024;
 export const MAX_PATCH_OPERATIONS = 128;

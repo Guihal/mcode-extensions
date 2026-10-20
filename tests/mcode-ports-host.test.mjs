@@ -1,7 +1,8 @@
 /**
  * Opt-in, offline integration of the shipped packages with @minimax-ai/code
- * 0.6.12. The default suite skips this file unless MCODE_HOST_PACKAGE names an
- * unpacked package with dependencies installed. No provider, live user session,
+ * 0.6.12. This separate Node host harness uses Bun for the real plugin children.
+ * MCODE_HOST_PACKAGE names an unpacked package with dependencies installed;
+ * MCODE_BUN_BINARY selects the plugin executable. No provider, live user session,
  * native better-sqlite3 writer, or network service participates in these checks.
  *
  * Both published chunks are checked before temporary copies append exports for
@@ -12,6 +13,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
 import {
   cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, readlinkSync, realpathSync,
   rmSync, statSync, symlinkSync, writeFileSync,
@@ -79,6 +81,10 @@ function assertPrecompactPolicy(text) {
 }
 
 async function fixture(t) {
+  assert.equal(process.versions.bun, undefined, 'The published host harness runs under Node; its plugins run under Bun.');
+  const bunBinary = realpathSync(process.env.MCODE_BUN_BINARY || execFileSync('bun', ['-p', 'process.execPath'], { encoding: 'utf8' }).trim());
+  assert.equal(execFileSync(bunBinary, ['-p', 'process.versions.bun'], { encoding: 'utf8' }).trim(),
+    readFileSync(join(repo, '.bun-version'), 'utf8').trim(), 'Use the declared Bun runtime for the plugin lane.');
   const sourceRoot = resolve(packageRoot);
   const metadata = readJson(join(sourceRoot, 'package.json'));
   assert.equal(metadata.name, '@minimax-ai/code');
@@ -110,7 +116,7 @@ async function fixture(t) {
   // remain unchanged. In particular, no test-only hook variable grants identity.
   const previousEnv = { ...process.env }, previousCwd = process.cwd(), previousHome = os.homedir;
   for (const name of Object.keys(process.env)) delete process.env[name];
-  Object.assign(process.env, { PATH: `${dirname(process.execPath)}:/usr/bin:/bin`, HOME: home,
+  Object.assign(process.env, { PATH: `${dirname(bunBinary)}:${dirname(process.execPath)}:/usr/bin:/bin`, HOME: home,
     LANG: 'C.UTF-8', MINIMAX_DATA_DIR: dataDir });
   os.homedir = () => home;
   syncBuiltinESMExports();
@@ -125,7 +131,7 @@ async function fixture(t) {
     for (const connection of runtime.pool.connections.values()) {
       const child = connection.transport._process, pid = connection.transport.pid;
       assert.ok(Number.isSafeInteger(pid) && pid > 0);
-      assert.equal(realpathSync(`/proc/${pid}/exe`), realpathSync(process.execPath), 'literal node launches the selected test Node version');
+      assert.equal(realpathSync(`/proc/${pid}/exe`), bunBinary, 'native MCP discovery launches the actual declared Bun executable');
       assert.equal(readlinkSync(`/proc/${pid}/cwd`), home, 'MCP starts at home, not the hook workspace');
       const env = Object.fromEntries(readFileSync(`/proc/${pid}/environ`, 'utf8').split('\0')
         .filter(Boolean).map((item) => { const at = item.indexOf('='); return [item.slice(0, at), item.slice(at + 1)]; }));
@@ -179,6 +185,7 @@ async function fixture(t) {
       assert.deepEqual(plugin.diagnostics, []);
       assert.ok(contentDigest);
       for (const hook of plugin.hooks) {
+        assert.match(hook.command, /^bun /, 'every owned native hook selects Bun');
         assert.equal(hook.pluginDataDir, join(dataDir, 'v2', 'plugin-data', 'hooks', plugin.name));
         assert.ok(hook.pluginRoot.startsWith(join(dataDir, 'v2', 'plugin-hook-cache') + sep));
         assert.equal(hook.activationKey, contentDigest);
@@ -384,8 +391,8 @@ test('published mcode 0.6.12 executes the four complete existing ports', { skip:
     const ownHook = (hook) => hook.pluginName === 'control-task' && hook.event === 'PostToolUse';
     const cases = [
       ['missing', []], ['disabled', f.handlers.filter((hook) => !ownHook(hook))],
-      ['failed', f.handlers.map((hook) => ownHook(hook) ? { ...hook, command: `node "${failed}"` } : hook)],
-      ['timed-out', f.handlers.map((hook) => ownHook(hook) ? { ...hook, command: `node "${stalled}"` } : hook)],
+      ['failed', f.handlers.map((hook) => ownHook(hook) ? { ...hook, command: `bun "${failed}"` } : hook)],
+      ['timed-out', f.handlers.map((hook) => ownHook(hook) ? { ...hook, command: `bun "${stalled}"` } : hook)],
     ];
     for (const [label, handlers] of cases) {
       const sessionId = `pending-${label}`;

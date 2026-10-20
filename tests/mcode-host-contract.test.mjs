@@ -1,7 +1,9 @@
 /**
  * Opt-in, offline probe of the actual published host, with no model/API call.
  * Set MCODE_HOST_PACKAGE to an unpacked @minimax-ai/code@0.6.12 package directory
- * with its npm dependencies installed. The ordinary test suite skips this probe.
+ * with its dependencies installed. Run this host harness with Node and set
+ * MCODE_BUN_BINARY to the Bun executable used by the actual plugin children.
+ * The ordinary Bun runner lists this probe as a separate native-host check.
  *
  * The checksum pins the unmodified published chunk. A temporary copy adds only
  * exports for otherwise-private functions; no implementation is substituted.
@@ -10,8 +12,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
 import {
-  cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync,
+  cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync,
 } from 'node:fs';
 import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
@@ -25,8 +28,13 @@ const chunkSha256 = 'c9d0342a9efa65955831fdc28907cbd434aab354ec3fbaf1f253f7d3b9b
 // sha512-aA4XPl9tYHTrtIS5DLB5DBSdxlcokZJ5BGUT/vSiDWei/tlVV5hIEVTgFhnSB6WM4evfNwOJtfi2fJVPNpJveg==
 
 test('published mcode 0.6.12 hook and compaction contract', { skip: !packageRoot }, async (t) => {
+  assert.equal(process.versions.bun, undefined, 'The published host harness runs under Node; its plugins run under Bun.');
+  const repo = dirname(dirname(fileURLToPath(import.meta.url)));
+  const bunBinary = realpathSync(process.env.MCODE_BUN_BINARY || execFileSync('bun', ['-p', 'process.execPath'], { encoding: 'utf8' }).trim());
+  const bunVersion = execFileSync(bunBinary, ['-p', 'process.versions.bun'], { encoding: 'utf8' }).trim();
+  assert.equal(bunVersion, readFileSync(join(repo, '.bun-version'), 'utf8').trim(), 'Use the declared Bun runtime for the plugin lane.');
   const previousPath = process.env.PATH;
-  process.env.PATH = `${dirname(process.execPath)}:${previousPath ?? '/usr/bin:/bin'}`;
+  process.env.PATH = `${dirname(bunBinary)}:${dirname(process.execPath)}:${previousPath ?? '/usr/bin:/bin'}`;
   t.after(() => {
     if (previousPath === undefined) delete process.env.PATH;
     else process.env.PATH = previousPath;
@@ -65,7 +73,6 @@ test('published mcode 0.6.12 hook and compaction contract', { skip: !packageRoot
     rmSync(root, { recursive: true, force: true });
   });
 
-  const repo = dirname(dirname(fileURLToPath(import.meta.url)));
   const pluginRoot = join(root, 'plugins', 'injection-rules');
   cpSync(join(repo, 'plugins', 'injection-rules'), pluginRoot, { recursive: true });
   cpSync(join(repo, 'rules'), join(pluginRoot, 'rules'), { recursive: true });
@@ -77,13 +84,13 @@ test('published mcode 0.6.12 hook and compaction contract', { skip: !packageRoot
     body: 'CHILD_ONLY_BODY', remind: {},
   }));
   const tracePath = join(pluginRoot, 'probe-events.jsonl');
-  // Test-only preloading isolates the subprocess's user-rule lookup and records
-  // event metadata. Original stdin bytes and engine stdout pass through unchanged.
+  // This preload runs before the real engine imports its built-ins. It records
+  // the actual Bun runtime and native event metadata, retaining stdin and stdout.
   writeFileSync(join(pluginRoot, 'probe-preload.cjs'), `
 const fs = require('node:fs');
 const path = require('node:path');
 const originalRead = fs.readFileSync;
-require('node:os').homedir = () => path.join(process.env.PLUGIN_ROOT, 'test-user');
+process.env.HOME = path.join(process.env.PLUGIN_ROOT, 'test-user');
 fs.readFileSync = function(file, ...args) {
   const result = originalRead.call(this, file, ...args);
   if (file === 0) {
@@ -91,18 +98,18 @@ fs.readFileSync = function(file, ...args) {
     const fields = ['hook_event_name', 'session_id', 'source', 'agent_type', 'agent_id', 'tool_name', 'is_error'];
     fs.appendFileSync(path.join(process.env.PLUGIN_ROOT, 'probe-events.jsonl'),
       JSON.stringify({ ...Object.fromEntries(fields.filter(k => p[k] !== undefined).map(k => [k,p[k]])),
-        data_dir: process.env.PLUGIN_DATA }) + '\\n');
+        data_dir: process.env.PLUGIN_DATA, bun: process.versions.bun,
+        executable: process.execPath }) + '\\n');
   }
   return result;
 };
-require('node:module').syncBuiltinESMExports();
 `);
   const configuration = JSON.parse(readFileSync(join(pluginRoot, 'hooks', 'hooks.json'), 'utf8'));
   // Keep the registered engine command; add only the test subprocess preload.
   for (const entries of Object.values(configuration.hooks)) {
     for (const entry of entries) for (const hook of entry.hooks) {
-      assert.ok(hook.command.startsWith('node '));
-      hook.command = hook.command.replace(/^node /, 'node --require "${PLUGIN_ROOT}/probe-preload.cjs" ');
+      assert.ok(hook.command.startsWith('bun '));
+      hook.command = hook.command.replace(/^bun /, 'bun --preload "${PLUGIN_ROOT}/probe-preload.cjs" ');
     }
   }
   const parsed = host.parseHooks({
@@ -147,6 +154,8 @@ require('node:module').syncBuiltinESMExports();
     assert.ok(trace().some((event) => event.source === 'resume'));
     assert.ok(trace().every((event) => event.data_dir.startsWith(root + sep)),
       'actual runner places PLUGIN_DATA inside the disposable fixture, not a real user store');
+    assert.ok(trace().every((event) => event.bun === bunVersion && realpathSync(event.executable) === bunBinary),
+      'native hook dispatch executes the declared Bun binary, not the Node host executable');
   });
 
   await t.test('successful, failing and batched tool executions retain results and receive reminders', async () => {
@@ -204,7 +213,7 @@ process.stdout.write(JSON.stringify({decision: 'block', reason: ${JSON.stringify
 `);
     const precompact = host.parseHooks({ pluginName: 'agent-state-contract-probe', pluginRoot: root, sourceFormat: 'MINIMAX',
       documents: [{ sourcePath: join(root, 'precompact-hooks.json'), value: { hooks: {
-        PreCompact: [{ hooks: [{ type: 'command', command: `node "${command}"`, timeout: 5 }] }],
+        PreCompact: [{ hooks: [{ type: 'command', command: `bun "${command}"`, timeout: 5 }] }],
       } } }] });
     assert.deepEqual(precompact.diagnostics, []);
     const signal = new AbortController().signal;

@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${PLUGIN_ROOT}/scripts/rules-engine.mjs\"",
+            "command": "bun \"${PLUGIN_ROOT}/scripts/rules-engine.mjs\"",
             "timeout": 5
           }
         ]
@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${PLUGIN_ROOT}/scripts/rules-engine.mjs\"",
+            "command": "bun \"${PLUGIN_ROOT}/scripts/rules-engine.mjs\"",
             "timeout": 5
           }
         ]
@@ -27,7 +27,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${PLUGIN_ROOT}/scripts/rules-engine.mjs\"",
+            "command": "bun \"${PLUGIN_ROOT}/scripts/rules-engine.mjs\"",
             "timeout": 5
           }
         ]
@@ -39,7 +39,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${PLUGIN_ROOT}/scripts/rules-engine.mjs\"",
+            "command": "bun \"${PLUGIN_ROOT}/scripts/rules-engine.mjs\"",
             "timeout": 5
           }
         ]

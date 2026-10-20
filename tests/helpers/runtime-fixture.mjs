@@ -7,6 +7,8 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
 export const repositoryRoot = dirname(dirname(dirname(fileURLToPath(import.meta.url))));
+if (!process.versions.bun) throw new Error('Run ordinary extension tests with bun scripts/test.mjs.');
+export const bunBinary = process.execPath;
 
 export function makeFixture(t, plugin, { pluginRoot = join(repositoryRoot, 'plugins', plugin) } = {}) {
   const root = mkdtempSync(join(tmpdir(), `mcode-${plugin}-test-`));
@@ -17,7 +19,7 @@ export function makeFixture(t, plugin, { pluginRoot = join(repositoryRoot, 'plug
   t?.after(() => rmSync(root, { recursive: true, force: true }));
   return { root, dataDir, workspaceDir, pluginRoot,
     pluginDataDir: join(dataDir, 'v2', 'plugin-data', 'hooks', plugin),
-    env: { PATH: `${dirname(process.execPath)}:/usr/bin:/bin`, HOME: home, LANG: 'C.UTF-8',
+    env: { PATH: `${dirname(bunBinary)}:/usr/bin:/bin`, HOME: home, LANG: 'C.UTF-8',
       MINIMAX_DATA_DIR: dataDir, PLUGIN_ROOT: pluginRoot,
       PLUGIN_DATA: join(dataDir, 'v2', 'plugin-data', 'hooks', plugin),
       MINIMAX_PROJECT_DIR: workspaceDir } };
@@ -26,7 +28,7 @@ export function makeFixture(t, plugin, { pluginRoot = join(repositoryRoot, 'plug
 export function runScript(script, input, { env, cwd, timeout = 12000, args = [] } = {}) {
   if (!env) throw new Error('An isolated fixture environment is required.');
   return new Promise((resolve, reject) => {
-    const child = spawn(process.execPath, [script, ...args], {
+    const child = spawn(bunBinary, [script, ...args], {
       cwd, env, stdio: ['pipe', 'pipe', 'pipe'], timeout, killSignal: 'SIGKILL',
     });
     const stdout = [];

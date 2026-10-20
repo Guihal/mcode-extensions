@@ -12,19 +12,18 @@ jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    strategy:
-      matrix:
-        node: [22, 24]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           persist-credentials: false
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
-          node-version: ${{ matrix.node }}
+          bun-version-file: .bun-version
+      - name: Check the declared Bun runtime
+        run: test "$(bun --version)" = "$(cat .bun-version)"
       - name: Check included runtime copies
-        run: node scripts/sync-plugin-runtime.mjs --check
+        run: bun scripts/sync-plugin-runtime.mjs --check
       - name: Check the Linux lock helper
         run: /usr/bin/flock --version
       - name: Run all ordinary extension checks
-        run: node --test tests/*.test.mjs
+        run: bun scripts/test.mjs

@@ -5,7 +5,7 @@ import { basename } from 'node:path';
 import { RuntimeError } from './runtime/storage.mjs';
 
 export const PLUGIN = 'agent-state';
-export const VERSION = '0.2.1';
+export const VERSION = '0.2.2';
 export const MAX_TITLE_CHARS = 200;
 export const MAX_NOTE_BODY_BYTES = 128 * 1024;
 export const MAX_ANCHOR_BYTES = 80000;
