@@ -8,7 +8,7 @@ import {
   validatePendingReceipt, formatDefinitiveResult, emitHookResult,
 } from './runtime/host.mjs';
 import { boundedDiagnostic } from './runtime/storage.mjs';
-import { PLUGIN, TOOLS, validateCall } from './agent-state-core.mjs';
+import { PLUGIN, TOOLS, validateCall, SAVE_GUIDANCE } from './agent-state-core.mjs';
 import {
   withGuideSession, executeGuideOperation, recoverPendingOperations,
 } from './agent-state-store.mjs';
@@ -28,13 +28,14 @@ function diagnose(identity, code, { operation, location } = {}) {
 }
 
 export function outcomeText(outcome) {
+  let message;
   if (outcome.committed) {
-    return `Reusable guide committed: file index ${outcome.note_id}; original ${outcome.path}. ${outcome.replayed ? 'This is the recorded outcome of this invocation; no duplicate guide was written. ' : ''}${outcome.status === 'partial' || outcome.recoveryRequired ? `The file is committed, but receipt/durability bookkeeping needs attention (${outcome.code}); derived delivery will be retried. ` : ''}Continue the next authorized task action.`;
-  }
-  if (outcome.notAdmitted) return `This invocation did not execute: ${outcome.code}. An unknown expired or future receipt cannot initiate a save; this says nothing about whether an earlier invocation committed.`;
-  if (outcome.pending) return `Save outcome is uncertain (${outcome.code}). Its retained recovery record prevents duplicate or conflicting writes. Original target: ${outcome.path}. No new save is claimed; recovery will be retried.`;
-  if (outcome.code === 'INTERRUPTED_SAVE_NOT_RETAINED') return 'The interrupted save did not leave the intended file in place. Recovery did not repeat the mutation or create another guide; no historical commit claim is made.';
-  return `Guide save ${outcome.status}: ${outcome.code}.${outcome.path ? ` Relevant original location: ${outcome.path}.` : ''} No successful save is claimed for this invocation.`;
+    message = `Reusable guide committed: file index ${outcome.note_id}; original ${outcome.path}. ${outcome.replayed ? 'This is the recorded outcome of this invocation; no duplicate guide was written. ' : ''}${outcome.status === 'partial' || outcome.recoveryRequired ? `The file is committed, but receipt/durability bookkeeping needs attention (${outcome.code}); later hooks can refresh derived delivery. ` : ''}`;
+  } else if (outcome.notAdmitted) message = `This invocation did not execute: ${outcome.code}. An unknown expired or future receipt cannot initiate a save; this says nothing about whether an earlier invocation committed.`;
+  else if (outcome.pending) message = `Save outcome is uncertain (${outcome.code}). Its retained recovery record protects the original target from conflicting writes: ${outcome.path}. No new save is claimed; later hooks can recheck that record.`;
+  else if (outcome.code === 'INTERRUPTED_SAVE_NOT_RETAINED') message = 'The interrupted save did not leave the intended file in place. Recovery did not repeat the mutation or create another guide; no historical commit claim is made.';
+  else message = `Guide save ${outcome.status}: ${outcome.code}.${outcome.path ? ` Relevant original location: ${outcome.path}.` : ''} No successful save is claimed for this invocation.`;
+  return `${message.trimEnd()} ${SAVE_GUIDANCE}`;
 }
 
 export async function handleGuideHook(payload, { env = process.env, emit = emitHookResult } = {}) {
@@ -65,7 +66,7 @@ export async function handleGuideHook(payload, { env = process.env, emit = emitH
         if (unresolved.length) diagnose(identity, unresolved[0].code, { location: unresolved[0].path });
       }
       if (receiptError) {
-        prefix = `[agent-state definitive operation result]\noperation=${ownOperation} receipt=unverified status=rejected\nThis invocation did not execute: ${errorCode(receiptError)}. The native result did not provide a valid matching pending receipt; no successful save is claimed.`;
+        prefix = `[agent-state definitive operation result]\noperation=${ownOperation} receipt=unverified status=rejected\nThis invocation did not execute: ${errorCode(receiptError)}. The native result did not provide a valid matching pending receipt; no successful save is claimed. ${SAVE_GUIDANCE}`;
       }
       const delivery = prepareGuideDelivery(context, payload, {
         prefix, ownTool: ownOperation !== null, successfulSave: outcome?.committed === true,
@@ -83,7 +84,7 @@ export async function handleGuideHook(payload, { env = process.env, emit = emitH
         context.state.delivery.refreshDue = true;
         delivery.snapshotDelivered = false;
         delivery.status = 'unavailable';
-        delivery.text = `${prefix}${prefix ? '\n\n' : ''}[agent-state delivery unavailable: ${errorCode(error)}]\nThe original guide files are retained at ${context.dir}. Mechanical delivery state could not be recorded; refresh will be retried. A separately committed save remains committed.`;
+        delivery.text = `${prefix}${prefix ? '\n\n' : ''}[agent-state delivery unavailable: ${errorCode(error)}]\nThe original guide files are retained at ${context.dir}. Mechanical delivery state could not be recorded; later hooks can refresh it. A separately committed save remains committed. ${SAVE_GUIDANCE}`;
         diagnose(identity, errorCode(error), { location: error.path });
       }
       emit(payload.hook_event_name, delivery.text);
@@ -102,8 +103,8 @@ export async function handleGuideHook(payload, { env = process.env, emit = emitH
         `This invocation could not access its session store (${outcome.code}). Its save result is unavailable; no successful save is claimed by this hook failure.`);
     }
     const unavailable = `[agent-state unavailable: ${errorCode(error)}]\n${outcome?.committed
-      ? 'The separately reported guide file remains committed; this subsequent hook step could not finish. Delivery will be retried.'
-      : 'Original guide files are retained. This hook failure does not establish a successful save; retain the pending result and retry when the reported storage/binding issue is resolved.'}`;
+      ? 'The separately reported guide file remains committed; this subsequent hook step could not finish. Later hooks can refresh delivery.'
+      : 'Original guide files are retained. This hook failure does not establish a successful save; any pending outcome remains unresolved.'} ${SAVE_GUIDANCE}`;
     // The native tool's original pending text remains intact. This context
     // reports the failure without claiming to rewrite the host's isError flag.
     emit(payload.hook_event_name, prefix ? `${prefix}\n\n${unavailable}` : unavailable);
@@ -119,7 +120,7 @@ async function main() {
   } catch (error) {
     diagnose(null, errorCode(error));
     if (payload && EVENTS.has(payload.hook_event_name)) {
-      emitHookResult(payload.hook_event_name, `[agent-state unavailable: ${errorCode(error)}]\nThe hook could not establish trusted session storage. No successful save is claimed.`);
+      emitHookResult(payload.hook_event_name, `[agent-state unavailable: ${errorCode(error)}]\nThe hook could not establish trusted session storage. No successful save is claimed. ${SAVE_GUIDANCE}`);
     }
   }
 }

@@ -187,7 +187,8 @@ function completeOperation(context, operation, outcome, now) {
 
 // Recovery runs before admission/expiry/reclamation and before another save can
 // overwrite a pending target. It observes the authoritative file, never repeats
-// a mutation. Unknown content leaves the pending record retained and blocks saves.
+// a mutation. Unknown content retains its pending record and protects that target;
+// it does not prevent independent guide saves.
 export function recoverPendingOperations(context, now = Date.now()) {
   const unresolved = [];
   let changed = false;
@@ -223,8 +224,12 @@ export function recoverPendingOperations(context, now = Date.now()) {
 
 function selectTarget(context, record) {
   const names = sessionFileNames(context.dir);
+  const pendingTargets = new Set(context.state.operations.filter((item) => item.state === 'pending').map((item) => item.note_id));
   let name = record.note_id;
   let before;
+  // Explicit edits keep their target even if its current file is unreadable or
+  // missing; admission will report the retained pending conflict without mutation.
+  if (name && pendingTargets.has(name)) return { name };
   if (record.checkpoint) {
     name = CHECKPOINT_ID;
     before = inspectGuide(join(context.dir, name), MAX_GUIDE_HASH_BYTES);
@@ -237,6 +242,7 @@ function selectTarget(context, record) {
     const slug = slugifyTitle(record.title);
     for (let i = 1; i <= 99; i += 1) {
       const candidate = `${slug}${i === 1 ? '' : `-${i}`}.md`;
+      if (pendingTargets.has(candidate)) continue;
       const current = inspectGuide(join(context.dir, candidate), MAX_GUIDE_HASH_BYTES);
       if (!current || (current.hashComplete && sha256Hex(bodyOf(decodeRecord(current))) === record.bodyHash)) {
         name = candidate; before = current; break;
@@ -257,7 +263,7 @@ function rejected(error) {
 }
 
 export function executeGuideOperation(context, { receipt, operation, args }, now = Date.now()) {
-  const unresolved = recoverPendingOperations(context, now);
+  recoverPendingOperations(context, now);
   const toolUseId = context.identity.toolUseId;
   if (!validId(toolUseId)) throw new RuntimeError('GUIDE_TOOL_ID_UNAVAILABLE', 'trusted tool-use identity is required');
   const old = context.state.operations.find((item) => item.toolUseId === toolUseId || item.receiptId === receipt.receiptId);
@@ -271,13 +277,13 @@ export function executeGuideOperation(context, { receipt, operation, args }, now
     };
     return { status: 'uncertain', committed: false, code: 'GUIDE_RECOVERY_CONFLICT', path: join(context.dir, old.note_id), pending: true };
   }
-  if (unresolved.length) {
-    return { status: 'unavailable', committed: false, code: 'GUIDE_PENDING_RECOVERY_REQUIRED', path: unresolved[0].path };
+  if (context.recoveryPersistFailed) {
+    return { status: 'unavailable', committed: false, code: 'GUIDE_RECOVERY_JOURNAL_UNAVAILABLE', path: join(context.dir, STATE_FILENAME) };
   }
   try { assertReceiptFresh(receipt, { now }); }
   catch (error) { return { ...rejected(error), code: safeCode(error), notAdmitted: true }; }
   // Only expired completed records can be reclaimed, and only when capacity
-  // requires it. Pending records have already been recovered or blocked above.
+  // requires it. Unresolved pending records remain retained.
   if (context.state.operations.length >= MAX_OPERATION_RECORDS) {
     context.state.operations = context.state.operations.filter((item) =>
       item.state !== 'completed' || now - item.createdAt <= 65000);
@@ -291,6 +297,9 @@ export function executeGuideOperation(context, { receipt, operation, args }, now
   try {
     const record = noteRecord(operation, args);
     target = selectTarget(context, record);
+    if (context.state.operations.some((item) => item.state === 'pending' && item.note_id === target.name)) {
+      return { status: 'unavailable', committed: false, code: 'GUIDE_PENDING_RECOVERY_REQUIRED', path: join(context.dir, target.name) };
+    }
     contents = renderNoteFile(record, now);
   } catch (error) {
     completeOperation(context, entry, rejected(error), now);

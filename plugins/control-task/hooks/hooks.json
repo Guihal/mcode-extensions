@@ -44,28 +44,6 @@
           }
         ]
       }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${PLUGIN_ROOT}/scripts/control-task-hook.mjs\"",
-            "timeout": 5
-          }
-        ]
-      }
-    ],
-    "SubagentStop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${PLUGIN_ROOT}/scripts/control-task-hook.mjs\"",
-            "timeout": 5
-          }
-        ]
-      }
     ]
   }
 }

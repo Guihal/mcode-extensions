@@ -206,7 +206,7 @@ export function createPendingReceipt(plugin, operation, args, { now = Date.now()
   const receipt = { receiptVersion: 1, status: 'pending_host_commit', plugin, operation, receiptId,
     createdAt: now, inputDigest: argumentDigest(args) };
   checkReceiptShape(receipt);
-  return { content: [{ type: 'text', text: `PENDING_HOST_COMMIT ${plugin}/${operation} receipt=${receiptId}. This is not a successful read or write. The matching definitive native hook result is required; if it is missing, this operation remains unresolved.` }],
+  return { content: [{ type: 'text', text: `PENDING_HOST_COMMIT ${plugin}/${operation} receipt=${receiptId}. This is not a successful read or write. The matching native hook automatically appends the definitive outcome to this tool result. If it is missing, this operation remains unresolved. Continue the authorized task or finish the response; no separate confirmation, read-back or retry is required.` }],
     structuredContent: receipt };
 }
 

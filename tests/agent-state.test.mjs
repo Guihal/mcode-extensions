@@ -14,6 +14,7 @@ import {
 } from '../plugins/agent-state/scripts/agent-state-core.mjs';
 import {
   parseHeader, collectGuides, STATE_FILENAME, INDEX_FILENAME, MAX_GUIDE_HASH_BYTES,
+  withGuideSession, executeGuideOperation,
 } from '../plugins/agent-state/scripts/agent-state-store.mjs';
 import {
   buildInjection, MAX_CONTEXT_CHARS,
@@ -32,6 +33,13 @@ const notesFor = (f, sid = 'session-a') => existsSync(dirFor(f, sid)) ? readdirS
 const seed = (f, sid, name, text) => { const dir = dirFor(f, sid); mkdirSync(dir, { recursive: true }); writeFileSync(join(dir, name), text); return join(dir, name); };
 const lifecycle = (f, event = 'SessionStart', sid = 'session-a', extra = {}) => ({ hook_event_name: event, session_id: sid, turn_id: 'turn-a', cwd: f.workspaceDir, ...(event === 'SessionStart' ? { source: 'startup' } : {}), ...extra });
 const otherTool = (f, n, extra = {}) => lifecycle(f, 'PostToolUse', 'session-a', { tool_use_id: `other-${n}`, tool_name: 'bash', tool_input: { command: 'true' }, tool_response: { content: [{ type: 'text', text: 'complete' }] }, ...extra });
+function saveGuidance(text) {
+  assert.match(text, /Before compaction[^.]*\bmust save\b[^.]*agent_state_note/u);
+  assert.match(text, /no new reusable knowledge[^.]*do not invent or duplicate/u);
+  assert.match(text, /Continue[^.]*task action or answer[^.]*rejected, unavailable, pending or uncertain/u);
+  assert.match(text, /no confirmation, read-back or retry is required/u);
+  assert.doesNotMatch(text, /YOU MUST SAVE IMPORTANT REUSABLE GUIDES NOW|After the definitive committed result|retain the pending result and retry|Guide storage is best effort/u);
+}
 async function fixture(t, rows) {
   const f = makeFixture(t, 'agent-state');
   await writeNativeSessions(f.dataDir, rows ? rows(f) : [{ sessionId: 'session-a', workspaceDir: f.workspaceDir }]);
@@ -48,6 +56,7 @@ async function save(f, args, { operation = 'agent_state_note', sid = 'session-a'
   const payload = postToolPayload({ plugin: 'agent-state', operation, args, result, sessionId: sid, toolUseId: useId, cwd: f.workspaceDir });
   const execution = await runHook(hook, payload, options(f));
   assert.equal(execution.code, 0, execution.stderr);
+  saveGuidance(execution.context);
   return { ...execution, payload, result };
 }
 function bounded(execution) {
@@ -84,6 +93,7 @@ test('one MCP process returns pending receipts without opening state or consulti
   ], options(f));
   const byId = (id) => response.responses.find((value) => value.id === id);
   assert.equal(byId(1).result.tools[0].inputSchema.additionalProperties, false);
+  for (const tool of byId(1).result.tools) saveGuidance(tool.description);
   for (const id of [2, 3]) {
     assert.equal(byId(id).result.structuredContent.status, 'pending_host_commit');
     assert.match(byId(id).result.content[0].text, /not a successful read or write/);
@@ -108,6 +118,7 @@ test('real MCP save then trusted hook delivers the committed original; startup a
   for (const source of ['startup', 'resume', 'plugin_activation']) {
     const restored = await runHook(hook, lifecycle(f, 'SessionStart', 'session-a', { source }), options(f));
     bounded(restored);
+    saveGuidance(restored.context);
     assert.match(restored.context, /15-byte guide!!/);
     assert.doesNotMatch(restored.stderr, /ReferenceError/);
   }
@@ -241,7 +252,7 @@ test('completed OTHER tools alone advance cadence10; errors count as executed to
   assert.equal(stateFor(f).delivery.completedOtherCalls, 0);
   for (let i = 1; i <= 9; i += 1) {
     const result = await runHook(hook, otherTool(f, i, i === 4 ? { tool_response: { isError: true, content: [{ type: 'text', text: 'Executed error' }] } } : {}), options(f));
-    assert.doesNotMatch(result.context, /Unchanged corpus sentinel|YOU MUST SAVE IMPORTANT REUSABLE GUIDES NOW/);
+    assert.doesNotMatch(result.context, /Unchanged corpus sentinel|\[Reusable guide reminder\]/);
   }
   assert.equal(stateFor(f).delivery.completedOtherCalls, 9);
   const failed = await save(f, { title: 'Missing', body: 'Advice', note_id: 'missing.md' });
@@ -249,12 +260,15 @@ test('completed OTHER tools alone advance cadence10; errors count as executed to
   assert.equal(stateFor(f).delivery.completedOtherCalls, 9);
   await save(f, { title: 'Cadence', body: 'Own save refresh' });
   assert.equal(stateFor(f).delivery.completedOtherCalls, 9);
+  const originalNotes = notesFor(f);
   const tenth = await runHook(hook, otherTool(f, 10), options(f));
-  assert.match(tenth.context, /YOU MUST SAVE IMPORTANT REUSABLE GUIDES NOW/);
+  assert.match(tenth.context, /\[Reusable guide reminder\]/);
+  saveGuidance(tenth.context);
   assert.doesNotMatch(tenth.context, /Own save refresh/);
+  assert.deepEqual(notesFor(f), originalNotes, 'Cadence cannot invent a guide or write a duplicate');
   assert.equal(stateFor(f).delivery.completedOtherCalls, 0);
   const duplicate = await runHook(hook, otherTool(f, 10), options(f));
-  assert.doesNotMatch(duplicate.context, /YOU MUST SAVE/);
+  assert.doesNotMatch(duplicate.context, /\[Reusable guide reminder\]/);
   assert.equal(stateFor(f).delivery.completedOtherCalls, 0);
   assert.equal(readFileSync(legacyCounter, 'utf8'), '{"turns":99}\n');
 });
@@ -273,6 +287,7 @@ test('successful compact restores guides and resets cadence; unsupported compact
   const compact = await runHook(hook, lifecycle(f, 'SessionStart', 'session-a', { source: 'compact' }), options(f));
   assert.match(compact.context, /Compaction original/);
   assert.match(compact.context, /Successful compaction boundary/);
+  saveGuidance(compact.context);
   assert.equal(stateFor(f).delivery.completedOtherCalls, 0);
   assert.equal(stateFor(f).delivery.epoch, before.epoch + 1);
 });
@@ -343,6 +358,7 @@ test('oversized manual files retain bounded readable prefixes and never become a
   assert.equal(stateFor(f).delivery.lastDigest, null);
   const later = await runHook(hook, otherTool(f, 1), options(f));
   assert.match(later.context, /complete freshness is unavailable/);
+  saveGuidance(later.context);
   assert.doesNotMatch(later.context, /ledger sha256=/);
   assert.deepEqual(readFileSync(file), before);
 });
@@ -395,6 +411,7 @@ test('1024 admitted guide originals and long locators fit through a durable comp
   bounded(result);
   assert.match(result.context, /INJECTION TRUNCATED/);
   assert.match(result.context, /\.guide-locators.json/);
+  saveGuidance(result.context);
   const index = JSON.parse(readFileSync(join(dirFor(f), INDEX_FILENAME), 'utf8'));
   assert.equal(index.files.length, 1024);
   assert.equal(index.freshness, 'complete');
@@ -437,6 +454,7 @@ test('receipt provenance and argument changes are rejected without a save; match
     const payload = structuredClone(base); mutation(payload);
     const execution = await runHook(hook, payload, options(f));
     assert.match(execution.context, /status=rejected/);
+    saveGuidance(execution.context);
     assert.equal(notesFor(f).length, 0);
   }
   const saved = await runHook(hook, base, options(f));
@@ -458,11 +476,10 @@ test('receipt provenance and argument changes are rejected without a save; match
   assert.equal(notesFor(f).length, 1);
 });
 
-async function interruptedSave(f, point) {
-  const args = { title: 'Interrupted', body: 'INTERRUPTED_ORIGINAL_RETAINED' };
+async function interruptedSave(f, point, { operation = 'agent_state_note', args = { title: 'Interrupted', body: 'INTERRUPTED_ORIGINAL_RETAINED' } } = {}) {
   const then = Date.now() - 120000;
-  const result = createPendingReceipt('agent-state', 'agent_state_note', validateCall('agent_state_note', args), { now: then });
-  const payload = postToolPayload({ plugin: 'agent-state', operation: 'agent_state_note', args, result, cwd: f.workspaceDir, toolUseId: 'interrupted-use' });
+  const result = createPendingReceipt('agent-state', operation, validateCall(operation, args), { now: then });
+  const payload = postToolPayload({ plugin: 'agent-state', operation, args, result, cwd: f.workspaceDir, toolUseId: 'interrupted-use' });
   const moduleRoot = join(repositoryRoot, 'plugins/agent-state/scripts');
   const harness = join(f.root, 'interrupt-save.mjs');
   writeFileSync(harness, `import {readFileSync} from 'node:fs';\nimport {resolveHookIdentity,readNativeLineage,validatePendingReceipt} from ${JSON.stringify(pathToFileURL(join(moduleRoot, 'runtime/host.mjs')).href)};\nimport {withGuideSession,executeGuideOperation} from ${JSON.stringify(pathToFileURL(join(moduleRoot, 'agent-state-store.mjs')).href)};\nimport {TOOLS,validateCall} from ${JSON.stringify(pathToFileURL(join(moduleRoot, 'agent-state-core.mjs')).href)};\nconst {payload,point,now}=JSON.parse(readFileSync(0,'utf8'));\nconst identity=resolveHookIdentity(payload,'agent-state');\nconst lineage=await readNativeLineage(identity);\nconst request=validatePendingReceipt(payload,'agent-state',{tools:TOOLS,validateCall});\nawait withGuideSession(identity,lineage,ctx=>{const persist=ctx.persist;ctx.persist=()=>{if(point==='after-file'&&ctx.state.operations.at(-1)?.state==='completed')process.kill(process.pid,'SIGKILL');const r=persist();if(point==='after-pending'&&ctx.state.operations.at(-1)?.state==='pending')process.kill(process.pid,'SIGKILL');return r;};return executeGuideOperation(ctx,request,now);});\n`);
@@ -478,6 +495,7 @@ test('real process death before/after note replacement recovers the pending targ
     const interrupted = await interruptedSave(f, point);
     assert.equal(notesFor(f).length, point === 'after-file' ? 1 : 0);
     const recovered = await runHook(hook, interrupted.payload, options(f));
+    saveGuidance(recovered.context);
     assert.doesNotMatch(recovered.context, /RECEIPT_EXPIRED/);
     if (point === 'after-file') {
       assert.match(recovered.context, /status=committed/);
@@ -491,21 +509,99 @@ test('real process death before/after note replacement recovers the pending targ
   }
 });
 
-test('an unresolved expired pending target blocks later writes and cannot be reclaimed to admit new receipts', async (t) => {
+test('an unresolved pending target remains protected while unrelated and auto-named saves continue', async (t) => {
   const f = await fixture(t);
-  await interruptedSave(f, 'after-file');
+  const interrupted = await interruptedSave(f, 'after-file');
   writeFileSync(join(dirFor(f), 'interrupted.md'), 'MANUAL_CONFLICT_RETAINED');
   const state = stateFor(f);
+  const pending = structuredClone(state.operations[0]);
   for (let i = 1; i < 1024; i += 1) state.operations.push({
     toolUseId: `old-${i}`, receiptId: randomUUID(), inputDigest: sha256Hex(`old-${i}`),
     operation: 'agent_state_note', createdAt: Date.now() - 120000, state: 'completed', completedAt: Date.now() - 119000,
     outcome: { status: 'unavailable', committed: false, code: 'PREVIOUS_FAILURE' },
   });
   writeFileSync(join(dirFor(f), STATE_FILENAME), `${JSON.stringify(state)}\n`);
-  const next = await save(f, { title: 'Must wait', body: 'Cannot overwrite unresolved target' });
-  assert.match(next.context, /GUIDE_PENDING_RECOVERY_REQUIRED/);
-  assert.equal(stateFor(f).operations.length, 1024);
-  assert.equal(stateFor(f).operations[0].state, 'pending');
-  assert.deepEqual(notesFor(f), ['interrupted.md']);
+  const next = await save(f, { title: 'Independent', body: 'Useful knowledge for another operation' });
+  assert.match(next.context, /status=committed/);
+  assert.equal(stateFor(f).operations.length, 2, 'Only expired completed records were reclaimed');
+  assert.deepEqual(stateFor(f).operations[0], pending);
+  const sameTarget = await save(f, { title: 'Exact edit', body: 'Do not overwrite the uncertain original', note_id: 'interrupted.md' });
+  assert.match(sameTarget.context, /status=unavailable/);
+  assert.match(sameTarget.context, /GUIDE_PENDING_RECOVERY_REQUIRED/);
+  const sameTitle = await save(f, { title: 'Interrupted', body: 'MANUAL_CONFLICT_RETAINED' });
+  assert.match(sameTitle.context, /status=committed/);
+  assert.match(sameTitle.context, /file index interrupted-2.md/);
+  const replay = await runHook(hook, interrupted.payload, options(f));
+  assert.match(replay.context, /status=uncertain/);
+  saveGuidance(replay.context);
+  assert.deepEqual(stateFor(f).operations[0], pending);
+  assert.deepEqual(notesFor(f), ['independent.md', 'interrupted-2.md', 'interrupted.md']);
   assert.equal(readFileSync(join(dirFor(f), 'interrupted.md'), 'utf8'), 'MANUAL_CONFLICT_RETAINED');
+});
+
+test('an uncertain stable checkpoint refuses only its own overwrite and never redirects to another filename', async (t) => {
+  const f = await fixture(t);
+  await interruptedSave(f, 'after-file', { operation: 'agent_state_checkpoint', args: { content: 'ORIGINAL_CHECKPOINT' } });
+  writeFileSync(join(dirFor(f), CHECKPOINT_ID), 'CHECKPOINT_CONFLICT_RETAINED');
+  const pending = stateFor(f).operations[0];
+  const attempt = await save(f, { content: 'Do not replace the uncertain guide' }, { operation: 'agent_state_checkpoint' });
+  assert.match(attempt.context, /status=unavailable/);
+  assert.match(attempt.context, /GUIDE_PENDING_RECOVERY_REQUIRED/);
+  assert.deepEqual(notesFor(f), [CHECKPOINT_ID]);
+  assert.equal(readFileSync(join(dirFor(f), CHECKPOINT_ID), 'utf8'), 'CHECKPOINT_CONFLICT_RETAINED');
+  const independent = await save(f, { title: 'Independent', body: 'Another useful guide' });
+  assert.match(independent.context, /status=committed/);
+  assert.deepEqual(stateFor(f).operations[0], pending);
+});
+
+test('a failed recovery-journal write keeps a new save local and unavailable without modifying either guide', async (t) => {
+  const f = await fixture(t);
+  await interruptedSave(f, 'after-file');
+  const beforeJournal = readFileSync(join(dirFor(f), STATE_FILENAME));
+  const beforeGuide = readFileSync(join(dirFor(f), 'interrupted.md'));
+  const payload = lifecycle(f, 'PostToolUse', 'session-a', { tool_use_id: 'new-after-recovery-failure' });
+  const identity = resolveHookIdentity(payload, 'agent-state', { env: f.env });
+  const lineage = await readNativeLineage(identity);
+  const args = validateCall('agent_state_note', { title: 'Later', body: 'New guide' });
+  const receipt = createPendingReceipt('agent-state', 'agent_state_note', args).structuredContent;
+  await withGuideSession(identity, lineage, (context) => {
+    context.persist = () => { throw new Error('Injected journal write failure'); };
+    const outcome = executeGuideOperation(context, { receipt, operation: 'agent_state_note', args });
+    assert.equal(outcome.status, 'unavailable');
+    assert.equal(outcome.code, 'GUIDE_RECOVERY_JOURNAL_UNAVAILABLE');
+    assert.equal(outcome.committed, false);
+  });
+  assert.deepEqual(readFileSync(join(dirFor(f), STATE_FILENAME)), beforeJournal);
+  assert.deepEqual(readFileSync(join(dirFor(f), 'interrupted.md')), beforeGuide);
+  assert.equal(existsSync(join(dirFor(f), 'later.md')), false);
+  const later = await save(f, { title: 'Later', body: 'New guide' });
+  assert.match(later.context, /status=committed/);
+  assert.equal(stateFor(f).operations[0].state, 'completed');
+});
+
+test('corrupt storage and missing identity report local failures while preserving originals and emitting no Stop continuation', async (t) => {
+  const f = await fixture(t);
+  await save(f, { title: 'Retained', body: 'ORIGINAL_GUIDE_RETAINED' });
+  const original = readFileSync(join(dirFor(f), 'retained.md'));
+  const corrupt = '{not a valid journal';
+  writeFileSync(join(dirFor(f), STATE_FILENAME), corrupt);
+  const failed = await save(f, { title: 'Unavailable', body: 'Cannot claim a save' });
+  assert.match(failed.context, /status=unavailable/);
+  for (const payload of [lifecycle(f), lifecycle(f, 'SessionStart', 'session-a', { source: 'compact' }), otherTool(f, 'after-failed-save')]) {
+    const result = await runHook(hook, payload, options(f));
+    assert.equal(result.code, 0);
+    assert.match(result.context, /GUIDE_STATE_INVALID/);
+    saveGuidance(result.context);
+  }
+  const identityFailure = await runHook(hook, { hook_event_name: 'SessionStart', source: 'startup' }, options(f));
+  assert.equal(identityFailure.code, 0);
+  saveGuidance(identityFailure.context);
+  for (const event of ['Stop', 'SubagentStop']) {
+    const stopped = await runHook(hook, lifecycle(f, event), options(f));
+    assert.equal(stopped.code, 0);
+    assert.equal(stopped.stdout, '');
+  }
+  assert.equal(readFileSync(join(dirFor(f), STATE_FILENAME), 'utf8'), corrupt);
+  assert.deepEqual(readFileSync(join(dirFor(f), 'retained.md')), original);
+  assert.deepEqual(notesFor(f), ['retained.md']);
 });

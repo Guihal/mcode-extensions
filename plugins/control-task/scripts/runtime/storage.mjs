@@ -277,7 +277,7 @@ export async function withSessionLock(directory, action) {
           { stdio: ['ignore', 'ignore', 'ignore', fd], timeout: 2500, killSignal: 'SIGKILL' });
         child.once('error', error => reject(new RuntimeError('LOCK_UNAVAILABLE', 'The util-linux flock helper could not run.', { path: directory, cause: error })));
         child.once('close', code => code === 0 ? resolve() : reject(new RuntimeError(code === 75 ? 'LOCK_BUSY' : 'LOCK_UNAVAILABLE',
-          code === 75 ? 'Session storage is busy; retry the operation.' : 'The session lock helper did not acquire the lock.',
+          code === 75 ? 'Session storage is busy; this operation could not acquire its lock.' : 'The session lock helper did not acquire the lock.',
           { path: directory, retryable: code === 75 })));
       });
     } catch (error) { throw storageError(error, 'LOCK_UNAVAILABLE', directory); }
