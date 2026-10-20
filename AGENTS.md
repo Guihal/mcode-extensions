@@ -85,7 +85,7 @@ Minimum constraints, not exhaustive checklist.
 - Repeat a check, scan, or edit only for a concrete unresolved requirement, a changed relevant state, an inconclusive prior result, or new contrary evidence. Reuse still-valid results; relevant mutations invalidate only affected evidence.
 - After a failed attempt, use the observed outcome to change the next action. Do not repeat an equivalent ineffective command or edit unless a transient failure justifies a bounded retry. A bounded capability probe should return its finding instead of silently becoming environment repair; if repair is the requested task, continue with a discriminating diagnosis and supported action.
 - Once the requested outcome and all applicable role, skill, and verification gates are satisfied, return the required report or handoff promptly. Do not restart completed checks, expand scope, or postpone delivery for reassurance.
-- Mandatory reusable-guide saving still applies when triggered. Complete it, then resume the task or deliver the report; it is not a reason to restart task inspection.
+- Keep two memory obligations: after user input, update control-task for requirements the user added, changed or canceled; before compaction, save new useful reusable knowledge in agent-state. Unchanged input requires no invented edit or confirmation. Other extension bookkeeping creates no workflow gate. If capture, saving, review accounting or restoration fails, continue the authorized work or deliver the report and report a relevant unresolved storage outcome honestly; no separate confirmation, read-back or retry is required.
 
 ## Scope and completion
 

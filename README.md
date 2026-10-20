@@ -132,7 +132,7 @@ plugins/<name>/scripts/runtime/*.mjs          included shared runtime (three plu
 | Plugin            | What it does                                                                                      |
 | ----------------- | ------------------------------------------------------------------------------------------------- |
 | `injection-rules` | Delivers full standing rules at session/subagent start and after compaction; reminders on each tool result, input or configured prompt cadence. |
-| `control-task`    | Complete durable task, revisioned `get` / `set` / `patch` / `confirm`, raw-input reconciliation and bounded stop checkpoints. |
+| `control-task`    | Complete durable task, revisioned `get` / `set` / `patch`, retained raw input and optional review tracking. |
 | `agent-state`     | Own reusable guides, verified immediate-parent sharing, content freshness and completed-tool reminders. |
 | `probe-hook`      | Packaged default-off diagnostic for hook, MCP and skill loading; enabled logs contain bounded metadata only.  |
 
@@ -153,19 +153,30 @@ instructions and their actual priority.
 | `control_task_get` | Read the task/review revisions and original body; optionally read a bounded range of raw prompt observations or their exact locators. |
 | `control_task_set` | Replace the whole task when its durable definition changes, retaining all still-applicable requirements. |
 | `control_task_patch` | Apply an atomic, revision-checked set of anchored add/replace/remove edits. |
-| `control_task_confirm` | Explicitly confirm an unchanged task after reviewing the complete current task and all inputs through the exact current input revision. |
+| `control_task_confirm` | Optional compatibility tool to record an unchanged-task review through the exact current input revision. |
 
-Every native `UserPromptSubmit` occurrence records raw input and adds review
-debt without rewriting the task. Review the **whole current task together with
-each new original input**: use `set`/`patch` if the definition changes, or
-`confirm` if it does not. `reviewedInputRevision` states exactly what was
-considered; an input arriving later stays pending. Ordinary steering can require
-either branch. The host's projection cannot establish human provenance, final
-acceptance or exact-once input delivery; identical same-turn observations are
-retained separately.
+Every native `UserPromptSubmit` occurrence records raw input and delivers an
+**obligatory requirement-update reminder**: add, change or remove requirements
+in `control-task` as directed by the original message, using `set`/`patch` and
+preserving all earlier applicable requirements. Unchanged steering needs no
+extra tool call. `reason` and `reviewedInputRevision` are optional; review
+tracking is informational and never a completion condition. An identical `set`
+or valid unchanged `patch` can record explicitly supplied review coverage in
+the same call without creating another task-body revision. An input arriving
+later remains visible as unreviewed. The host's projection cannot establish
+human provenance, final acceptance or exact-once input delivery; identical
+same-turn observations are retained separately.
+
+The plugin has no Stop/SubagentStop handlers and never forces another agent
+turn. An unset task, unreviewed input or failed storage operation does not
+prevent the next tool call or the final response. Old checkpoint-budget files
+are left untouched and ignored.
 
 The initial MCP response is **pending**, including for reads. Only a matching
-trusted `PostToolUse` result supplies the definitive operation outcome. A direct
+trusted `PostToolUse` result supplies the definitive operation outcome within
+the same tool result, without another confirmation call. If that result is
+missing or reports a failure, continue the primary task while keeping the
+storage outcome unresolved. A direct
 MCP client without MiniMax hooks cannot read or mutate session state. Structural
 validation and review counters do not prove that a model understood or recorded
 every requirement. Examples and exact recovery semantics are in
@@ -186,12 +197,25 @@ immediate parent**; it never discovers guides by a common workspace or a last
 active-session pointer. Guides restore on supported start/resume/compact
 boundaries and refresh after a successful own save or a detected content
 change. The default reminder cadence counts 10 completed other-tool events,
-not user prompts. A cadence reminder does not require inventing a guide when
-nothing reusable was learned.
+not user prompts. The delivered policy requires saving new useful reusable
+knowledge **before compaction**. Ordinary cadence reminders reinforce this
+obligation; a counter alone does not demand an immediate save or an invented
+guide. A failed save does not require a retry or hold up other task actions.
+
+The exact pre-compaction model turn is a **native host limitation in 0.6.12**:
+`PreCompact` can defer once, but its reason does not reach the model, and the
+next automatic attempt proceeds. The plugin therefore delivers the mandatory
+instruction proactively; it cannot guarantee a last-moment save before every
+compact. No ineffective PreCompact blocker is installed. The behavior is
+exercised in [the native host contract](tests/mcode-host-contract.test.mjs).
 
 Like control-task, a save is pending until its definitive native hook result.
 An already committed guide remains committed if a later delivery-index refresh
-fails; the result reports that partial outcome and delivery can retry.
+fails; the result reports that partial outcome and automatic delivery can retry.
+No save outcome requires a separate confirmation, read-back or retry before
+continuing. An unresolved interrupted write reserves only its own target;
+other guides remain writable when the journal is usable. Uncertain target
+content and unreadable journals are preserved and produce local errors.
 
 ### probe-hook
 

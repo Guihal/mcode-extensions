@@ -23,8 +23,8 @@ exposing original functions in disposable copies. See the
 
 | Package | Version | Native tools |
 | --- | --- | --- |
-| `control-task` | 0.2.0 | `control_task_get`, `control_task_set`, `control_task_patch`, `control_task_confirm` |
-| `agent-state` | 0.2.0 | `agent_state_note`, `agent_state_checkpoint` |
+| `control-task` | 0.2.1 | `control_task_get`, `control_task_set`, `control_task_patch`, optional `control_task_confirm` |
+| `agent-state` | 0.2.1 | `agent_state_note`, `agent_state_checkpoint` |
 | `injection-rules` | 0.2.0 | Hook delivery; no MCP server |
 | `probe-hook` | 0.1.0 | `probe_echo`, disabled through packaged configuration by default |
 
@@ -52,7 +52,7 @@ status. The original tool content and standing reminders remain present.
 | Observed result | Meaning |
 | --- | --- |
 | Pending receipt only | No completed read/write is established. The required hook result is missing or unavailable. |
-| Definitive committed result | The operation's durable write was confirmed. Continue the next authorized action. |
+| Definitive committed result | The operation's durable write was confirmed. |
 | Rejected or unchanged result | No new requested mutation was admitted; the result gives the relevant reason. |
 | Unavailable result | The operation could not establish the required state or capability. Absence is not inferred from an error. |
 | Partial or uncertain result | The result names what committed and what remains unresolved; it never erases an earlier commit by calling the whole operation unsuccessful. |
@@ -64,6 +64,16 @@ these MiniMax hooks receives only pending receipts and cannot use the stateful
 tools to retrieve or mutate session files. A hook failure leaves that pending
 response visibly unresolved. The transport and envelope contracts are in
 [transport.mjs](../runtime/transport.mjs) and [host.mjs](../runtime/host.mjs).
+
+The two memory obligations are to update changed requirements after user input
+and save new useful reusable knowledge before compaction. Their reminders do
+not add a general completion or confirmation gate. Every storage outcome is
+local to that operation. The matching hook runs automatically
+within the native tool-result path; the model does not need another call to
+confirm it. Pending, rejected, unavailable, partial or uncertain storage never
+requires a retry, read-back, repaired store or successful save before continuing
+the authorized primary task or finishing the response. Report unresolved
+persistence honestly when it matters to the requested outcome.
 
 ## Complete task and reconciliation
 
@@ -99,42 +109,46 @@ established. Confirm the supported encoding contract before relying on it.
 
 The model identifies and writes this content. The plugin supplies guidance,
 retains the supplied complete body, records raw observations and explicit
-review decisions, and restores the body and debt. It does not extract implied
+optional review decisions, and restores the body and observation counters. It does not extract implied
 requirements automatically or use a keyword classifier to decide whether prose
-is semantically complete. Valid arguments, a saved fixture and a zero review-debt
+is semantically complete. Valid arguments, a saved fixture and a zero unreviewed-input
 counter do not prove model understanding or obedience. The tool guidance and
 reconciliation behavior are checked separately in
 [control-task tests](../tests/control-task.test.mjs).
 
-### Review every new original input against the whole current task
+### Preserve requirements without mandatory bookkeeping calls
 
 Each actual native `UserPromptSubmit` invocation appends the raw prompt under
 the session lock and advances a local `inputRevision`. It does **not** replace
-the task body. The model must compare the complete current task with the new
-original input, preserve earlier requirements and their qualifications that
-still apply, and change only what an authoritative clarification changes or
-cancels. Ordinary steering can affect the durable definition and cannot be
-ignored merely because it is not phrased as a replacement task.
+the task body. The delivered reminder explicitly requires updating the durable
+task for requirements the user added, changed or canceled. When a clarification changes the durable definition, preserve
+earlier requirements and qualifications that still apply and change only what
+that clarification changes or cancels. Ordinary steering can carry a real
+requirement. If the task remains unchanged, continue without an extra tool call.
+An input counter records observations; it does not impose a completion gate.
 
-1. Use `control_task_get` to inspect the current task and review revisions.
-   Its optional `inputFromRevision` and `inputLimit` request original observations
-   in a bounded range, with exact locators for retained text.
-2. If the definition changed, use whole-body `control_task_set` or atomic
-   `control_task_patch`, with the `reviewedInputRevision` actually covered.
-3. If the whole task remains correct, explicitly call `control_task_confirm`
-   with the **exact current** input revision and a reason.
-4. Use the matching definitive native hook result. Any later concurrent input
-   remains pending and requires a subsequent review.
+`control_task_get` is available when the current body or original input is
+needed, including after compaction. Its optional `inputFromRevision` and
+`inputLimit` request original observations in a bounded range, with exact
+locators for retained text. Reading material already available in context is
+not a mandatory prerequisite for every edit or following action.
 
-`set` retains its original mandatory `taskBody` and `reason` arguments. Omitting
-`reviewedInputRevision` does not silently clear existing debt. `patch` requires
-`expectedRevision`, a nonempty list of at most 128 operations, and a reason.
+`set` requires only `taskBody`; `reason` is optional on `set`, `patch` and
+`confirm`, with omission stored as an empty rationale. Optional
+`reviewedInputRevision` states only the observations actually considered.
+Omitting it does not silently clear the unreviewed count. `patch` requires
+`expectedRevision` and a nonempty list of at most 128 operations.
 Its `match`/`after` anchors must select exactly one trimmed line after CRLF
 normalization. Missing or ambiguous anchors and stale revisions reject the
 whole patch. `add` appends when `after` is omitted. Each accepted material edit
-stores a full new task revision; identical resulting content is an explicit
-no-op rejection. `confirm` never changes the task body and cannot clear debt
-with a stale or future revision. Exact schemas and limits are in
+stores a full new task revision. Identical resulting content creates no body
+revision, but the same `set` or valid `patch` can record explicitly supplied,
+monotonically advanced review coverage. No separate confirmation is needed.
+Older coverage cannot reduce progress; future coverage, stale task revisions
+and failed patches cannot record review progress. A later concurrent input
+remains visible as unreviewed. Optional `confirm` records the unchanged-task
+review through the exact current input revision; it does not change the body
+and cannot clear observations with a stale or future value. Exact schemas and limits are in
 [control-task-core.mjs](../plugins/control-task/scripts/control-task-core.mjs).
 
 The native host omits producer identity, final acceptance and a unique per-input
@@ -146,7 +160,7 @@ describe **observed prompt occurrences**, not an exact-once count of accepted
 human messages. SessionStart, compaction and tool-result text never become
 synthetic prompt observations.
 
-### Revisions, original locators and stop checkpoints
+### Revisions, original locators and unobstructed completion
 
 Task views distinguish current, not set and unavailable. The full canonical
 body is delivered when it fits its native envelope and combined-context
@@ -160,17 +174,13 @@ through the active arrays or the archive ranges in the canonical file and
 not replace the canonical file as the authority. Original task and prompt text
 remain in current records or immutable archive segments.
 
-At a completed native Stop/SubagentStop boundary, the deterministic checkpoint
-can request a continuation for a missing task, unavailable task or unreviewed
-input. It records the grant durably and allows at most one per trusted
-`(session_id, turn_id)` run and three per session. Independent mechanical
-accounting prevents corrupt task content from resetting the budget. Spent or
-unavailable budgets produce diagnostics without an unaccounted continuation.
-Plain Stop additional context also causes a native continuation, so it is not
-used as a supposedly harmless exhausted-budget advisory. Tool-name heuristics
-do not prove that a shell command mutated data or that a later observation
-successfully verified it. Error/aborted model exits are outside the completed
-Stop boundary delivered by this host.
+`control-task` has no Stop/SubagentStop registrations or continuation-budget
+machinery. Direct invocation at either unsupported boundary emits nothing.
+An unset or unreadable task, an unreviewed input and a failed operation never
+force another turn or prevent the next tool or final response. Existing
+`checkpoint.json` files are retained unchanged and ignored. This also avoids
+the native host's treatment of plain Stop `additionalContext` as a continuation.
+The probe's optional Stop logging emits no context, including on failure.
 
 ## Reusable guides
 
@@ -217,10 +227,37 @@ compaction. Successful own saves deliver the updated guides without consuming
 the ordinary cadence. Completed other-tool events advance the default cadence
 of 10; startup and UserPromptSubmit do not. User input can still discover changed
 parent guides. Failed compaction does not reset cadence or claim restoration.
-The reminder requires saving important reusable knowledge when learned, not
-inventing a note merely because the counter fired. See
+The policy and reminders require saving new useful reusable knowledge before
+compaction. An ordinary cadence count does not invent knowledge or demand a
+save at that exact count. No successful result, read-back or retry is required
+before the next task action or final response. Missing or failed delivery stays
+local to the extension. See
 [delivery logic](../plugins/agent-state/scripts/agent-state-delivery.mjs) and
 [guide scenarios](../tests/agent-state.test.mjs).
+
+### Exact pre-compaction saving: host capability limit
+
+An early mandatory instruction and a guaranteed model save immediately before
+compaction are different properties. MiniMax0.6.12 accepts `decision: "block"`
+at PreCompact as a one-time deferral, but rejects `additionalContext` there.
+The automatic compaction caller drops the reason and system message before
+provider-context preparation. The model receives its previous messages, and
+the next automatic attempt is admitted despite another block. The manual
+boundary returns a deferral reason without scheduling a model/tool turn.
+
+The original host parser, actual command hook, compaction-admission method and
+provider-context preparation are exercised in
+[mcode-host-contract.test.mjs](../tests/mcode-host-contract.test.mjs). This
+proves the missing opportunity to request a save, not autonomous model behavior.
+Queuing a reminder for the next PostToolUse is too late: the next automatic
+compaction can happen before the model sees that result. Rewriting existing
+guide bytes also does not capture new knowledge from the full conversation.
+
+The shipped plugin retains the mandatory before-compaction policy on supported
+delivery surfaces and installs no ineffective PreCompact blocker. A guaranteed
+last-moment save remains unavailable until the host supplies a pre-compaction
+model/tool opportunity. The extension does not claim that startup or periodic
+reminders establish that guarantee.
 
 ## Existing data, failures and retries
 
@@ -231,7 +268,7 @@ derive it only from the verified `PLUGIN_DATA` shape
 | Data | Preserved/current location |
 | --- | --- |
 | Canonical task | `<dataDir>/v2/plugin-data/hooks/control-task/control-task/sessions/<id>.json` |
-| Task backup, archives, original locator index and checkpoint budget | The adjacent `<id>/` directory |
+| Task backup, archives and original locator index | The adjacent `<id>/` directory; any old `checkpoint.json` is untouched and ignored |
 | Original own guides | `<dataDir>/v2/plugin-data/hooks/agent-state/agent-state/sessions/<id>/*.md` |
 | Guide delivery/recovery state and locator index | `.agent-state.json` and `.guide-locators.json` inside the own guide directory |
 | Enabled probe metadata | `<dataDir>/v2/plugin-data/hooks/probe-hook/probe.log` and `tool-calls.log` |
@@ -245,8 +282,9 @@ and old prompt counts are not reinterpreted as completed-tool counts.
 
 Missing files alone establish absence. Empty, malformed, wrong-version,
 identity-mismatched, unsafe or unreadable state is unavailable and is not
-silently replaced with an empty store. Preserve such files for explicit recovery
-and inspect the reported original location and error code. An interrupted
+silently replaced with an empty store. Such files are preserved for explicit
+recovery, with their original location and error code reported. Recovery is
+not a precondition for unrelated tools or final reporting. An interrupted
 archive/index write keeps the previous canonical state valid or returns an
 explicit recovery/partial result.
 
@@ -267,6 +305,13 @@ without blindly repeating the mutation. An unknown expired receipt cannot
 start new work and does not prove that no earlier invocation ever committed.
 A changed operation under a reused trusted tool-use ID is rejected. Unresolved
 pending records are never evicted to make room for new mutations.
+
+An unresolved guide write reserves only its target filename. With a usable
+journal, another guide can still be saved; automatic new-guide naming skips
+reserved filenames. An explicit edit to the same unresolved target returns a
+local unavailable result and preserves its bytes and recovery record. An
+unreadable or unwriteable journal remains a local storage failure, without
+forcing agent continuation or automatically replacing uncertain history.
 
 ## Bounds and diagnostic behavior
 
@@ -303,8 +348,8 @@ and [rule tests](../tests/injection-rules.test.mjs).
 | Pi purpose / requested property | MiniMax implementation or evidenced limit |
 | --- | --- |
 | Caller-owned task and guides | Trusted PostToolUse owner; shared MCP transports never select a session |
-| Full task with explicit and implied requirements | Free-text authoring guidance, full revisions, raw observations and explicit reconciliation; no automatic semantic extraction guarantee |
-| Atomic patch and unchanged branch | Revision-checked anchored patch and exact-input confirmation |
+| Full task with explicit and implied requirements | Free-text authoring guidance, full revisions, raw observations and optional review tracking; no automatic semantic extraction guarantee |
+| Atomic patch and unchanged branch | Revision-checked anchored patch; unchanged text needs no follow-up call; optional exact-input confirmation remains compatible |
 | Durable original guide recovery | Own files, safe writes, immediate-parent shared collection, content freshness and full originals/locators |
 | Repeated guide reminders | Completed-other-tool cadence and successful-save delivery |
 | Startup/resume/compact recovery | Available native lifecycle context; successful compact restores originals |
@@ -312,7 +357,9 @@ and [rule tests](../tests/injection-rules.test.mjs).
 | Trustworthy near-context-threshold warning | Unavailable: native payloads expose no usable usage/window/reserve facts; no text-length estimate substitutes for them |
 | Rich-compaction snapshot priority | No corresponding installed consumer on this hook stack; no unused cache pretends to supply it |
 | Exactly-once accepted human-input capture | Unavailable from the native projection; raw observed occurrences are retained conservatively |
-| Bounded completed-run checkpoint | Native Stop/SubagentStop with durable one/run and three/session bounds; no fabricated abort/error stop callback |
+| Required memory reminders | Mandatory changed-requirement update after user input; mandatory policy to save new useful knowledge before compaction |
+| Exact save opportunity immediately before compaction | Unavailable: native PreCompact deferral does not deliver a model/tool turn; early reminders do not guarantee timing |
+| Unobstructed extension use and completion | No task Stop/SubagentStop continuation; review counters and ordinary cadence create no gate; local storage failure leaves other tools and final reporting available |
 | Reminder for every rejected tool attempt | Early validation/permission/unknown-tool failures and unexecuted aborted-batch remainder can bypass PostToolUse |
 | Model compliance or live installation | Offline persistence/delivery tests do not establish model obedience or installation in a user's running session |
 

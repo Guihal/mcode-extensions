@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "name": "agent-state",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Session-owned reusable guides: safe durable notes and verified immediate-parent sharing through trusted MiniMax hooks.",
   "author": "penis",
   "icon": "icon.png",

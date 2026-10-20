@@ -56,6 +56,7 @@ test('published mcode 0.6.12 hook and compaction contract', { skip: !packageRoot
   writeFileSync(probeModule, original.toString('utf8') + '\nexport {' + [
     'dCn as parseHooks', 'pxn as parseOutput', 'wr as hooks', 'gL as HookLifecycle',
     'qKn as manualPostCompact', '$nr as autoPostCompact', 'srr as afterTool', 'sun as executeTools',
+    'zKn as manualPreCompact', 'yj as AgentHost', 'Ydn as beforeProvider',
   ].join(',') + '};\n');
   const host = await import(pathToFileURL(probeModule).href);
   host.hooks.automaticIdleSessionEnd = false;
@@ -187,6 +188,61 @@ require('node:module').syncBuiltinESMExports();
     assert.equal(host.parseOutput({ hookSpecificOutput: {
       hookEventName: 'PostCompact', additionalContext: 'invalid for this event',
     } }, { sourceFormat: 'MINIMAX' }, { event: 'PostCompact' }), undefined);
+  });
+
+  await t.test('host limitation: PreCompact deferral cannot deliver a model save request before compaction', async () => {
+    const marker = 'SAVE_REQUIRED_BEFORE_COMPACT_CONTRACT_PROBE';
+    const format = { sourceFormat: 'MINIMAX' }, event = { event: 'PreCompact' };
+    assert.equal(host.parseOutput({ hookSpecificOutput: { hookEventName: 'PreCompact', additionalContext: marker } }, format, event), undefined);
+    assert.deepEqual(host.parseOutput({ decision: 'block', reason: marker }, format, event), { decision: 'allow', defer: true, reason: marker });
+    const command = join(root, 'precompact-contract-hook.mjs');
+    const eventsPath = join(root, 'precompact-contract-events.jsonl');
+    writeFileSync(command, `import fs from 'node:fs';
+const payload = JSON.parse(fs.readFileSync(0, 'utf8'));
+fs.appendFileSync(${JSON.stringify(eventsPath)}, JSON.stringify(payload) + '\\n');
+process.stdout.write(JSON.stringify({decision: 'block', reason: ${JSON.stringify(marker)}, systemMessage: ${JSON.stringify(marker)}}) + '\\n');
+`);
+    const precompact = host.parseHooks({ pluginName: 'agent-state-contract-probe', pluginRoot: root, sourceFormat: 'MINIMAX',
+      documents: [{ sourcePath: join(root, 'precompact-hooks.json'), value: { hooks: {
+        PreCompact: [{ hooks: [{ type: 'command', command: `node "${command}"`, timeout: 5 }] }],
+      } } }] });
+    assert.deepEqual(precompact.diagnostics, []);
+    const signal = new AbortController().signal;
+    const manual = await host.manualPreCompact({ lease: { sessionId: 'precompact-manual', turnId: 'manual-turn', signal } },
+      { hooks: precompact.handlers }, root, runtimeContext);
+    assert.equal(manual, marker, 'The manual boundary returns a reason rather than scheduling a model/tool turn');
+    let compactStarted = 0;
+    for (const sessionId of ['precompact-a', 'precompact-b']) {
+      // Only the compaction service is a controlled offline boundary. The
+      // original host admission and provider-context preparation are exercised.
+      const self = { dependencies: { compaction: {
+        automatic: { async compactBeforeLlm(_input, callbacks) {
+          await callbacks.onStarted(); compactStarted++;
+          return { status: 'unchanged', reason: 'nothing-to-compact' };
+        } }, lifecycle: { async failCommittedHistory() {} },
+      } }, compactionAttempts: { create: () => `attempt-${sessionId}-${compactStarted}` } };
+      const compactionHook = host.AgentHost.prototype.createContextCompactionHook.call(self,
+        { lease: { sessionId, turnId: 'provider-turn', leaseId: 'offline-lease', signal }, session: { workspaceDir: root } },
+        { context: { sessionId, turnId: 'provider-turn', turnSequence: 1 }, preflight: { preparation: { llm: {} } },
+          pluginHooks: precompact.handlers, pluginHookRuntimeContext: runtimeContext });
+      const messages = [{ role: 'user', content: [{ type: 'text', text: 'Continue original work' }] }];
+      const provider = { input: { sessionId, turnId: 'provider-turn', systemPrompt: 'Original system' }, hooks: { beforeLLM: [compactionHook] },
+        llm: { model: { id: 'offline', api: 'anthropic-messages' } }, tools: [], thinkingLevel: 'off',
+        logger: { warn() {}, info() {}, error() {} }, nextEventId: () => 0, nextRuntimeSeq: () => 0 };
+      const before = compactStarted;
+      const first = await host.beforeProvider(provider, messages, 'iteration', signal);
+      assert.equal(first.type, 'unchanged');
+      assert.deepEqual(first.messages, messages);
+      assert.equal(JSON.stringify(first).includes(marker), false, 'Neither reason nor systemMessage reaches the model');
+      assert.equal(compactStarted, before, 'The first automatic attempt is deferred once');
+      const second = await host.beforeProvider(provider, messages, 'iteration', signal);
+      assert.equal(second.type, 'unchanged');
+      assert.deepEqual(second.messages, messages);
+      assert.equal(compactStarted, before + 1, 'The next attempt compacts before the model despite the repeated block');
+    }
+    const events = readFileSync(eventsPath, 'utf8').trim().split('\n').map(JSON.parse);
+    assert.deepEqual(events.map((item) => item.trigger), ['manual', 'auto', 'auto', 'auto', 'auto']);
+    t.diagnostic('PreCompact accepts one deferral but does not deliver a save request or an extra tool turn; an early policy reminder is not a guaranteed pre-compaction save.');
   });
 
   await t.test('child start and automatic compact preserve child identity and child-only bodies', async () => {

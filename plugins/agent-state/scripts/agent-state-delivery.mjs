@@ -3,7 +3,7 @@
 import { join } from 'node:path';
 import { RuntimeError, atomicWrite } from './runtime/storage.mjs';
 import { hookOutputByteLength, MAX_HOOK_OUTPUT_BYTES } from './runtime/host.mjs';
-import { POLICY, SAVE_REMINDER, sha256Hex } from './agent-state-core.mjs';
+import { POLICY, SAVE_REMINDER, SAVE_GUIDANCE, sha256Hex } from './agent-state-core.mjs';
 import { collectGuides, INDEX_FILENAME, MAX_COLLECTED_GUIDES } from './agent-state-store.mjs';
 
 export const MAX_INJECT_BYTES = 80000;
@@ -159,7 +159,7 @@ function preamble(collection, payload, reminder) {
     parts.push('Successful compaction boundary: restore these reusable guides and continue unfinished work. Earlier context-usage estimates have expired.');
   }
   if (!collection.files.length) parts.push(collection.complete ? 'No reusable guide files are currently saved for this session or its verified immediate parent.' : 'No readable guide content is currently available in this partial collection.');
-  if (!collection.complete) parts.push(`Collection is partial (${collection.issues[0]?.code ?? 'GUIDE_FRESHNESS_UNAVAILABLE'}). Own originals are retained; unavailable lineage/files will be retried at later supported hook boundaries.`);
+  if (!collection.complete) parts.push(`Collection is partial (${collection.issues[0]?.code ?? 'GUIDE_FRESHNESS_UNAVAILABLE'}). Own originals are retained; later supported hooks can recheck unavailable lineage/files.`);
   if (reminder) parts.push(SAVE_REMINDER);
   return parts.join('\n');
 }
@@ -170,7 +170,7 @@ export function prepareGuideDelivery(context, payload, { prefix = '', ownTool = 
   const force = ['SessionStart', 'SubagentStart'].includes(payload.hook_event_name);
   const changed = collection.presentationKey !== context.state.delivery.lastPresentationKey;
   if (!force && !successfulSave && !context.state.delivery.refreshDue && !changed) {
-    const partial = collection.complete ? '' : `[agent-state collection partial: ${collection.issues[0]?.code ?? 'GUIDE_FRESHNESS_UNAVAILABLE'}; complete freshness is unavailable and will be retried. Own original guides remain retained.]`;
+    const partial = collection.complete ? '' : `[agent-state collection partial: ${collection.issues[0]?.code ?? 'GUIDE_FRESHNESS_UNAVAILABLE'}; complete freshness is unavailable. Own original guides remain retained; later hooks can recheck availability.]\n${SAVE_GUIDANCE}`;
     return { text: combine(prefix, [partial, reminder ? SAVE_REMINDER : ''].filter(Boolean).join('\n')), status: collection.complete ? 'unchanged' : 'partial', collection, snapshotDelivered: false, reminder };
   }
   const indexPath = join(context.dir, INDEX_FILENAME);
@@ -183,7 +183,7 @@ export function prepareGuideDelivery(context, payload, { prefix = '', ownTool = 
     return { ...rendered, status: collection.complete ? 'delivered' : 'partial', collection, snapshotDelivered: true, reminder };
   } catch (error) {
     context.state.delivery.refreshDue = true;
-    const text = combine(prefix, `[agent-state delivery unavailable: ${error?.code ?? 'GUIDE_DELIVERY_UNAVAILABLE'}]\nOriginal guide files remain at ${context.dir}. The derived guide delivery or locator index could not be refreshed; it will be retried. A separately committed guide save remains committed.${reminder ? `\n${SAVE_REMINDER}` : ''}`);
+    const text = combine(prefix, `[agent-state delivery unavailable: ${error?.code ?? 'GUIDE_DELIVERY_UNAVAILABLE'}]\nOriginal guide files remain at ${context.dir}. The derived guide delivery or locator index could not be refreshed; later hooks can refresh it. A separately committed guide save remains committed. ${SAVE_GUIDANCE}${reminder ? `\n${SAVE_REMINDER}` : ''}`);
     if (text.length > MAX_CONTEXT_CHARS || hookOutputByteLength(payload.hook_event_name, text) >= MAX_HOOK_OUTPUT_BYTES) throw error;
     return { text, status: 'unavailable', collection, snapshotDelivered: false, reminder, error };
   }

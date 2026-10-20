@@ -41,11 +41,14 @@ const noContinuation = (result) => {
   assert.equal(result.decision.continuePrompt, undefined, 'plain Stop additionalContext is also a native continuation');
   assert.notEqual(result.decision.decision, 'block');
 };
-function assertRequirementsPolicy(text, label, { review = false } = {}) {
+function deliveredPolicy(text) {
   // Supplied fixture clauses and captured raw text cannot establish that the
   // plugin itself delivers the content obligation to the model.
-  const policy = text.replace(/\[BEGIN VERBATIM CANONICAL TASK\][\s\S]*?\[END VERBATIM CANONICAL TASK\]/gu, '')
+  return text.replace(/\[BEGIN VERBATIM CANONICAL TASK\][\s\S]*?\[END VERBATIM CANONICAL TASK\]/gu, '')
     .split('\n').filter((line) => !line.startsWith('Raw prompt text (JSON string):')).join('\n');
+}
+function assertRequirementsPolicy(text, label, { review = false } = {}) {
+  const policy = deliveredPolicy(text);
   for (const meaning of [
     /applicable explicit requirements/iu, /grounded implicit \(implied\) requirements/iu,
     /basis and source/iu, /constraints, result and acceptance conditions/iu,
@@ -53,10 +56,26 @@ function assertRequirementsPolicy(text, label, { review = false } = {}) {
     /unresolved assumptions visibly tentative\/open/iu,
   ]) assert.match(policy, meaning, label);
   if (review) for (const meaning of [
-    /whole current task together with every new original prompt observation/iu,
+    /whole current task and the relevant original input/iu,
     /earlier requirements and qualifications that still apply/iu,
-    /set\/patch/iu, /explicitly confirm unchanged/iu,
+    /set\/patch/iu, /Unchanged steering needs no task call or confirmation/iu,
   ]) assert.match(policy, meaning, label);
+}
+
+function assertInputObligation(text, label) {
+  const policy = deliveredPolicy(text);
+  for (const meaning of [
+    /After this user message, you MUST use control_task_set\/control_task_patch to add, change or remove durable requirements/,
+    /preserving all earlier requirements and qualifications that still apply/,
+    /Include grounded implied requirements with their basis/,
+    /If no durable requirement changes, no invented edit, confirmation or read is required/,
+  ]) assert.match(policy, meaning, label);
+}
+
+function assertPrecompactPolicy(text) {
+  assert.match(text, /Before compaction, you must save new useful reusable knowledge with agent_state_note/);
+  assert.match(text, /If there is no new reusable knowledge, do not invent or duplicate a guide/);
+  assert.match(text, /Continue the next authorized task action or answer even when a save is rejected, unavailable, pending or uncertain/);
 }
 
 async function fixture(t) {
@@ -274,6 +293,9 @@ test('published mcode 0.6.12 executes the four complete existing ports', { skip:
       assertRequirementsPolicy(listed.find((tool) => tool.name === name).description, `actual stdio tools/list ${name}`);
       assertRequirementsPolicy(f.tool(`mcp__control-task__${name}`).def.description, `native model tool ${name}`);
     }
+    const guideServer = [...f.runtime.servers].find(([, entry]) => entry.pluginName === 'agent-state')[0];
+    for (const tool of await f.runtime.pool.refreshTools(guideServer)) assertPrecompactPolicy(tool.description);
+    assertPrecompactPolicy(f.tool(note).def.description);
     const probe = f.packages.find(({ plugin }) => plugin.name === 'probe-hook').plugin;
     assert.match(probe.skills[0].content, /PROBE-SKILL-MARKER-24680/);
     assert.deepEqual(readJson(join(probe.rootPath, 'probe.config.json')), { enabled: false });
@@ -283,6 +305,7 @@ test('published mcode 0.6.12 executes the four complete existing ports', { skip:
     const startA = await f.host.hooks.beginTurn(f.turn('main-a', 'initial-a'));
     const startB = await f.host.hooks.beginTurn(f.turn('main-b', 'initial-b'));
     f.assertBodies(startA.decision.additionalContext); f.assertBodies(startB.decision.additionalContext);
+    assertPrecompactPolicy(startA.decision.additionalContext);
     const child = await f.host.hooks.startSubagent({ handlers: f.handlers, parentSessionId: 'main-a',
       parentTurnId: 'parent-turn', childSessionId: 'child', childTurnId: 'child-turn',
       agentId: 'different-agent-instance', agentType: 'worker', cwd: f.childWorkspace, ...f.context });
@@ -354,7 +377,7 @@ test('published mcode 0.6.12 executes the four complete existing ports', { skip:
     t.diagnostic(`Observed ${calls.length} actual tools/call wire requests across ${new Set([...firstPids, ...secondPids]).size} native stdio processes; session identity appears only at the hook boundary.`);
   });
 
-  await t.test('missing, disabled, failed and timed-out PostToolUse leaves an unresolved receipt and no mutation', async () => {
+  await t.test('missing, disabled, failed and timed-out PostToolUse leaves an unresolved receipt while the next tool and completion remain available', async () => {
     const failed = join(f.root, 'failure-fixture.mjs'), stalled = join(f.root, 'timeout-fixture.mjs');
     writeFileSync(failed, 'throw new Error("OFFLINE_HOOK_FAILURE");\n');
     writeFileSync(stalled, 'setInterval(() => {}, 1000);\n');
@@ -373,6 +396,16 @@ test('published mcode 0.6.12 executes the four complete existing ports', { skip:
       assert.doesNotMatch(textOf(result), /\[control-task definitive operation result\]/);
       assert.equal(existsSync(f.taskPath(sessionId)), false);
       if (handlers.length) f.assertReminder(result);
+      assert.match(textOf(result), /Continue the authorized task or finish the response/);
+      const next = await f.invoke(sessionId, `after-${label}`, 'mcp__probe__probe_echo',
+        { text: `NEXT_TOOL_AFTER_${label}` }, { handlers });
+      assert.equal(next.isError, false);
+      assert.match(textOf(next), /PROBE-MCP-DISABLED/);
+      assert.equal(next.details.mcp.structuredContent.status, 'disabled');
+      const messages = [];
+      assert.equal(await f.host.stopAfterTurn(f.input(sessionId, `after-${label}`, { pluginHooks: handlers }), messages,
+        { stopHookActive: false, stopContinuationCount: 0, lastAssistantMessage: 'Primary work completed despite unresolved storage' }), true);
+      assert.deepEqual(messages, [], 'A pending hook outcome does not request a repair or acknowledgment turn');
     }
     const warnings = f.logs.filter((entry) => entry.kind === 'hook');
     assert.ok(warnings.length >= 2, 'Actual hook failures produce native diagnostics');
@@ -497,7 +530,8 @@ test('published mcode 0.6.12 executes the four complete existing ports', { skip:
     assert.match(notSet.decision.additionalContext, /ACTIVE TASK — NOT SET/);
     assertRequirementsPolicy(notSet.decision.additionalContext, 'native not-set guidance');
     const originalPrompt = 'Repair all four existing ports and preserve my existing task and guide state across upgrade and restart.';
-    await f.host.hooks.beginTurn(f.turn('steer-main', 'steer-start', { prompt: originalPrompt }));
+    const started = await f.host.hooks.beginTurn(f.turn('steer-main', 'steer-start', { prompt: originalPrompt }));
+    assertInputObligation(started.decision.additionalContext, 'native first-prompt obligation');
     const before = readJson(f.taskPath('steer-main')).inputRevision;
     const clauses = [
       'Explicit outcome: repair control-task, agent-state, injection-rules and probe-hook. Source: fixture://request/original#ports.',
@@ -521,6 +555,7 @@ test('published mcode 0.6.12 executes the four complete existing ports', { skip:
         preparedAt.push(readJson(f.taskPath('steer-main')).inputRevision);
         return { userMessage: { text: pending.message.text }, genuineUserQueryText: pending.message.text };
       });
+      assertInputObligation(textOf(result.message), `native steering obligation ${index}`);
       if (index === 0) assertRequirementsPolicy(textOf(result.message), 'native raw-input reconciliation guidance', { review: true });
       admitted.push(result.acceptedUserMessageId);
     }
@@ -533,9 +568,10 @@ test('published mcode 0.6.12 executes the four complete existing ports', { skip:
     assert.deepEqual(admitted, prompts.map((_, index) => `native-user-${index}`));
     assert.equal(state.reviewedInputRevision, before);
     assert.equal(state.revisions.at(-1).taskBody, body);
-    await f.host.prepareSteering(f.input('steer-main', 'same-live-turn'), {
+    const replayedSteering = await f.host.prepareSteering(f.input('steer-main', 'same-live-turn'), {
       message: { text: prompts[3] }, producerId: 'composer-steer', userMessageId: 'native-user-3', idempotencyKey: 'native-user-3',
     }, async (pending) => ({ userMessage: { text: pending.message.text }, genuineUserQueryText: pending.message.text }));
+    assertInputObligation(textOf(replayedSteering.message), 'native replayed occurrence obligation');
     assert.equal(readJson(f.taskPath('steer-main')).inputRevision, before + 5, 'Indistinguishable hook replay is conservatively another observation');
     const view = await f.invoke('steer-main', 'steer-view', get, { inputFromRevision: before + 1, inputLimit: 5 });
     for (let index = before + 1; index <= before + 5; index++) assert.ok(textOf(view).includes(`${f.taskPath('steer-main')}#inputRevision=${index}`));
@@ -579,9 +615,10 @@ test('published mcode 0.6.12 executes the four complete existing ports', { skip:
     assert.equal(state.reviewedInputRevision, priorCompact);
     assert.equal(state.revisions.at(-1).taskBody, expectedBody);
     const nonmaterial = 'Check progress against the same complete task; this message adds or cancels no requirement.';
-    await f.host.prepareSteering(f.input('steer-main', 'same-live-turn'), {
+    const unchangedSteering = await f.host.prepareSteering(f.input('steer-main', 'same-live-turn'), {
       message: { text: nonmaterial }, producerId: 'composer-steer', userMessageId: 'native-nonmaterial', idempotencyKey: 'native-nonmaterial',
     }, async (pending) => ({ userMessage: { text: pending.message.text }, genuineUserQueryText: pending.message.text }));
+    assertInputObligation(textOf(unchangedSteering.message), 'native nonmaterial steering obligation');
     const finalInputRevision = priorCompact + 1;
     const review = await f.invoke('steer-main', 'steer-review-original', get, { inputFromRevision: finalInputRevision, inputLimit: 1 });
     assert.ok(textOf(review).includes(expectedBody));
@@ -611,9 +648,12 @@ test('published mcode 0.6.12 executes the four complete existing ports', { skip:
       childSessionId: 'steer-child', childTurnId: 'child-live-turn', agentId: 'steering-agent-instance', agentType: 'worker',
       cwd: f.workspaceDir, ...f.context });
     assert.equal(readJson(f.taskPath('steer-child')).inputRevision, 0, 'SubagentStart is not a prompt input');
-    for (let index = 0; index < 2; index++) await f.host.prepareSteering(f.input('steer-child', 'child-live-turn'), {
-      message: { text: 'Identical child steering' }, producerId: 'composer-steer', userMessageId: `child-user-${index}`, idempotencyKey: `child-user-${index}`,
-    }, async (pending) => ({ userMessage: { text: pending.message.text }, genuineUserQueryText: pending.message.text }));
+    for (let index = 0; index < 2; index++) {
+      const childSteering = await f.host.prepareSteering(f.input('steer-child', 'child-live-turn'), {
+        message: { text: 'Identical child steering' }, producerId: 'composer-steer', userMessageId: `child-user-${index}`, idempotencyKey: `child-user-${index}`,
+      }, async (pending) => ({ userMessage: { text: pending.message.text }, genuineUserQueryText: pending.message.text }));
+      assertInputObligation(textOf(childSteering.message), `native child steering obligation ${index}`);
+    }
     state = readJson(f.taskPath('steer-child'));
     assert.deepEqual(state.inputs.map((item) => item.text), ['Identical child steering', 'Identical child steering']);
     assert.equal(state.binding.agentId, 'steering-agent-instance');
@@ -691,8 +731,11 @@ test('published mcode 0.6.12 executes the four complete existing ports', { skip:
       assert.ok(!textOf(result).includes('CHILD_OWN_SHARED_BODY'));
       assert.ok(!textOf(result).includes('PARENT_SHARED_NEW'));
       f.assertReminder(result);
-      if (index < 10) assert.doesNotMatch(textOf(result), /YOU MUST SAVE IMPORTANT REUSABLE GUIDES NOW/);
-      else assert.match(textOf(result), /YOU MUST SAVE IMPORTANT REUSABLE GUIDES NOW/);
+      if (index < 10) assert.doesNotMatch(textOf(result), /\[Reusable guide reminder\]/);
+      else {
+        assert.match(textOf(result), /\[Reusable guide reminder\]/);
+        assertPrecompactPolicy(textOf(result));
+      }
     }
     assert.equal(guideState('guide-child').delivery.completedOtherCalls, 0);
     const epoch = guideState('guide-child').delivery.epoch;
@@ -700,6 +743,7 @@ test('published mcode 0.6.12 executes the four complete existing ports', { skip:
     assert.ok(compact.content.includes('PARENT_SHARED_NEW'));
     assert.ok(compact.content.includes('CHILD_OWN_SHARED_BODY'));
     f.assertBodies(compact.content);
+    assertPrecompactPolicy(compact.content);
     assert.equal(guideState('guide-child').delivery.epoch, epoch + 1);
     assert.equal(guideState('guide-child').delivery.completedOtherCalls, 0);
     await otherTool('guide-child', 'before-failed-compact', f.childWorkspace);
@@ -818,42 +862,63 @@ test('published mcode 0.6.12 executes the four complete existing ports', { skip:
     assert.equal(readJson(f.taskPath('result-preservation')).reviewedInputRevision, inputRevision);
   });
 
-  const budgetPath = (id) => join(dirname(f.taskPath(id)), id, 'checkpoint.json');
-  await t.test('real Stop/SubagentStop continuation is limited to one per native turn and three per session', async () => {
+  const obsoleteCheckpointPath = (id) => join(dirname(f.taskPath(id)), id, 'checkpoint.json');
+  await t.test('task observations and failed extension storage leave ordinary tools and native root/child completion available', async () => {
     for (const child of [false, true]) {
       const id = child ? 'stop-child' : 'stop-root';
       f.nativeSession(id, child ? { parentSessionId: 'main-a' } : {});
-      for (let run = 1; run <= 4; run++) {
-        const turnId = `stop-run-${run}`;
+      const oldBudget = '{obsolete checkpoint data is deliberately invalid';
+      mkdirSync(dirname(obsoleteCheckpointPath(id)), { recursive: true });
+      writeFileSync(obsoleteCheckpointPath(id), oldBudget);
+      for (const phase of ['unset', 'unreviewed', 'corrupt-task', 'corrupt-guide']) {
+        const turnId = `nonblocking-${phase}`;
         if (child) await f.host.hooks.startSubagent({ handlers: f.handlers, parentSessionId: 'main-a', parentTurnId: 'parent-stop',
           childSessionId: id, childTurnId: turnId, agentId: 'stop-child-instance', agentType: 'worker', cwd: f.workspaceDir, ...f.context });
         else await f.host.hooks.beginTurn(f.turn(id, turnId));
+        if (child) await f.host.prepareSteering(f.input(id, turnId), {
+          message: { text: `Original ${phase} user instruction` }, producerId: 'composer-steer',
+          userMessageId: `${id}-${phase}`, idempotencyKey: `${id}-${phase}`,
+        }, async (pending) => ({ userMessage: { text: pending.message.text }, genuineUserQueryText: pending.message.text }));
+        if (phase === 'unset') assert.equal(readJson(f.taskPath(id)).taskRevision, 0);
+        if (phase === 'unreviewed') {
+          const saved = await f.invoke(id, `${phase}-save`, set, { taskBody: 'Preserve every applicable explicit and grounded implied requirement.' });
+          assert.match(textOf(saved), /status=committed/);
+          const state = readJson(f.taskPath(id));
+          assert.equal(state.reviewedInputRevision, 0);
+          assert.ok(state.inputRevision > 0, 'No review acknowledgment is made before proceeding');
+          assert.equal(state.revisions.at(-1).reason, '', 'A plain save requires no bookkeeping rationale');
+        }
+        if (phase === 'corrupt-task') {
+          writeFileSync(f.taskPath(id), '{broken canonical JSON');
+          const failed = await f.invoke(id, `${phase}-save`, set, { taskBody: 'This cannot replace unreadable original state.' });
+          assert.match(textOf(failed), /status=unavailable/);
+          assert.match(textOf(failed), /TASK_STATE_INVALID/);
+          assert.equal(readFileSync(f.taskPath(id), 'utf8'), '{broken canonical JSON');
+        }
+        if (phase === 'corrupt-guide') {
+          const journal = join(f.guideDir(id), '.agent-state.json');
+          mkdirSync(f.guideDir(id), { recursive: true });
+          writeFileSync(journal, '{broken original guide journal');
+          const failed = await f.invoke(id, `${phase}-save`, note, { title: 'An unavailable save', body: 'Verified guide content whose save must remain unresolved.' });
+          assert.match(textOf(failed), /status=unavailable/);
+          assert.match(textOf(failed), /GUIDE_STATE_INVALID/);
+          assert.equal(readFileSync(journal, 'utf8'), '{broken original guide journal');
+          assert.equal(existsSync(join(f.guideDir(id), 'an-unavailable-save.md')), false);
+        }
+        const next = await otherTool(id, `${turnId}-ordinary-tool`);
+        assert.equal(next.isError, false);
+        assert.match(textOf(next), /PROBE-MCP-DISABLED/);
+        f.assertReminder(next);
         const messages = [];
         const stopped = await f.host.stopAfterTurn(f.input(id, turnId), messages,
           { stopHookActive: false, stopContinuationCount: 0, lastAssistantMessage: 'Completed offline turn' });
-        assert.equal(stopped, run > 3);
-        assert.equal(messages.length, run > 3 ? 0 : 1);
-        if (run <= 3) {
-          assert.match(textOf(messages[0]), /single permitted continuation for this run/);
-          const repeated = await f.host.hooks.finishTurn(f.turn(id, turnId, { stopHookActive: false }));
-          noContinuation(repeated);
-          assert.equal(await f.host.stopAfterTurn(f.input(id, turnId), messages,
-            { stopHookActive: true, stopContinuationCount: 1, lastAssistantMessage: 'Continuation completed' }), true);
-          assert.equal(messages.length, 1, 'The same native lease turn cannot renew its allowance');
-        }
+        assert.equal(stopped, true);
+        assert.deepEqual(messages, [], `Native ${child ? 'SubagentStop' : 'Stop'} needs no bookkeeping continuation for ${phase}`);
+        noContinuation(await f.host.hooks.finishTurn(f.turn(id, turnId, { stopHookActive: false })));
+        assert.equal(readFileSync(obsoleteCheckpointPath(id), 'utf8'), oldBudget, 'Old checkpoint budgets remain untouched and inert');
       }
-      const budget = readJson(budgetPath(id));
-      assert.equal(budget.runs.length, 3);
-      writeFileSync(f.taskPath(id), '{broken canonical JSON');
-      noContinuation(await f.host.hooks.finishTurn(f.turn(id, 'after-corruption')));
-      assert.deepEqual(readJson(budgetPath(id)), budget, 'Canonical corruption cannot reset the independent durable budget');
     }
-    f.nativeSession('unavailable-budget');
-    mkdirSync(dirname(budgetPath('unavailable-budget')), { recursive: true });
-    writeFileSync(budgetPath('unavailable-budget'), 'unavailable budget');
-    noContinuation(await f.host.hooks.finishTurn(f.turn('unavailable-budget', 'no-accounting')));
-    assert.equal(readFileSync(budgetPath('unavailable-budget'), 'utf8'), 'unavailable budget');
-    t.diagnostic('Native dJn delivered one actual follow-up message per allowed turn, exactly three for each root/child session; repeats and corrupt state granted none.');
+    t.diagnostic('Original native tool dispatch and dJn completed with no forced follow-up for unset/unreviewed tasks and task/guide storage failures in both root and child sessions.');
   });
 
   await t.test('the original native model loop exits errors and aborts before any Stop hook or continuation', async () => {
@@ -879,10 +944,10 @@ test('published mcode 0.6.12 executes the four complete existing ports', { skip:
       assert.equal(stopCalls, 0);
       assert.equal(messages.at(-1).stopReason, stopReason);
       assert.ok(events.some((event) => event.type === 'agent_end'));
-      assert.equal(existsSync(budgetPath(id)), false);
+      assert.equal(existsSync(obsoleteCheckpointPath(id)), false);
       if (child) {
         f.host.hooks.cancelSubagent(id);
-        assert.equal(existsSync(budgetPath(id)), false, 'Native cancellation does not synthesize SubagentStop');
+        assert.equal(existsSync(obsoleteCheckpointPath(id)), false, 'Native cancellation does not create an extension checkpoint');
       }
     }
   });
@@ -1025,7 +1090,7 @@ test('published mcode 0.6.12 executes the four complete existing ports', { skip:
       childSessionId: 'probe-child', childTurnId: 'probe-child-turn', agentId: 'probe-child-instance', agentType: 'worker',
       cwd: f.workspaceDir, ...f.context });
     noContinuation(await f.host.hooks.finishTurn(f.turn('probe-child', 'probe-child-turn')));
-    noContinuation(await f.host.hooks.finishTurn(f.turn('stop-root', 'enabled-after-budget-spent')));
+    noContinuation(await f.host.hooks.finishTurn(f.turn('stop-root', 'enabled-with-corrupt-task')));
     const logBytes = readFileSync(hookLog);
     writeFileSync(config, '{"enabled":"yes"}\n');
     await f.reload();

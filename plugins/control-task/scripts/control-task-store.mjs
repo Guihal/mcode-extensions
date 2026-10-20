@@ -1,12 +1,11 @@
 // One session lock and one atomic record own task, input and receipt changes.
-// Immutable archives retain primary text. The independent checkpoint file owns
-// only continuation accounting, so an invalid task cannot reset its loop budget.
+// Immutable archives retain primary text. Task bookkeeping never controls
+// whether the host may execute another tool or finish the current turn.
 import { createHash, randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import * as storage from './runtime/storage.mjs';
 import { assertReceiptFresh, resolveWorkspaceBinding, validateReceiptShape } from './runtime/host.mjs';
 import { decideOperation, parseTaskBody, validText, validateCall, TOOLS } from './control-task-core.mjs';
-import { evaluateCheckpoint, validateBudget } from './control-task-checkpoint.mjs';
 
 export { MAX_TASK_BODY, parseTaskBody } from './control-task-core.mjs';
 export const STORE_VERSION = 2;
@@ -23,7 +22,7 @@ const failure = (code, message, path, extra = {}) => new storage.RuntimeError(co
 export function taskPaths(identity) {
   const id = storage.safeSessionId(identity.sessionId);
   const directory = join(identity.pluginDataDir, 'control-task', 'sessions', id);
-  return { directory, state: `${directory}.json`, legacy: join(directory, 'legacy.json'), index: join(directory, 'input-locations.json'), checkpoint: join(directory, 'checkpoint.json') };
+  return { directory, state: `${directory}.json`, legacy: join(directory, 'legacy.json'), index: join(directory, 'input-locations.json') };
 }
 function emptyState(identity, lineage) {
   return { schemaVersion: STORE_VERSION, sessionId: identity.sessionId, binding: resolveWorkspaceBinding(null, identity, lineage), taskRevision: 0, inputRevision: 0, reviewedInputRevision: 0, revisions: [], inputs: [], archives: [], operations: [], legacyBackup: null };
@@ -312,7 +311,7 @@ export class ControlTaskStore {
       if (state.operations.length >= this.limits.maxOperations) throw failure('OPERATION_STORAGE_LIMIT', 'Retained operation receipts reached their bound; this invocation did not execute', this.paths.state, { status: 'rejected' });
       const decision = decideOperation(summary(state), receipt.operation, args);
       if (decision.status === 'committed') {
-        if (decision.taskBody !== undefined) { state.taskRevision += 1; state.revisions.push({ revision: state.taskRevision, taskBody: decision.taskBody, at: new Date(this.now()).toISOString(), mutationId: receipt.receiptId, reason: args.reason, reviewedInputRevision: decision.reviewedInputRevision }); }
+        if (decision.taskBody !== undefined) { state.taskRevision += 1; state.revisions.push({ revision: state.taskRevision, taskBody: decision.taskBody, at: new Date(this.now()).toISOString(), mutationId: receipt.receiptId, reason: args.reason ?? '', reviewedInputRevision: decision.reviewedInputRevision }); }
         state.reviewedInputRevision = decision.reviewedInputRevision;
       }
       const current = summary(state);
@@ -321,27 +320,6 @@ export class ControlTaskStore {
       // Task mutation and completed receipt share exactly one atomic replacement.
       const delivery = await this.persist(loaded, state);
       return { outcome, view: await this.operationView(state, args, undefined, delivery), replayed: false };
-    });
-  }
-  async checkpoint(stopHookActive = false) {
-    return this.locked(async () => {
-      let current;
-      try { current = summary((await this.read()).state); }
-      catch (error) { current = { status: 'unavailable', errorCode: error.code || 'TASK_UNAVAILABLE' }; }
-      const record = await this.io.readRegular(this.paths.checkpoint, 32 * 1024);
-      let budget;
-      if (record) {
-        try { budget = validateBudget(JSON.parse(this.io.decodeRecord(record)), this.identity.sessionId); if (!object(budget.binding)) throw new Error('binding'); }
-        catch { throw failure('CHECKPOINT_BUDGET_UNAVAILABLE', 'Continuation accounting is invalid; no unaccounted continuation was granted', this.paths.checkpoint); }
-        budget.binding = resolveWorkspaceBinding(budget.binding, this.identity, this.lineage);
-      } else budget = { schemaVersion: 1, sessionId: this.identity.sessionId, binding: resolveWorkspaceBinding(null, this.identity, this.lineage), runs: [] };
-      const decision = evaluateCheckpoint({ ...current, budget, turnId: this.identity.turnId, stopHookActive });
-      if (decision.block) {
-        budget.runs.push({ turnId: this.identity.turnId, at: new Date(this.now()).toISOString(), reason: decision.reason });
-        // Failed or uncertain accounting never grants an unaccounted block.
-        await this.io.atomicWrite(this.paths.checkpoint, encode(budget));
-      }
-      return decision;
     });
   }
 }
