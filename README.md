@@ -139,7 +139,7 @@ plugins/<name>/scripts/runtime/*.mjs          included shared runtime (three plu
 
 | Plugin            | What it does                                                                                      |
 | ----------------- | ------------------------------------------------------------------------------------------------- |
-| `injection-rules` | Delivers full standing rules at session/subagent start and after compaction; reminders on each tool result, input or configured prompt cadence. |
+| `injection-rules` | Delivers full standing rules at session/subagent start and after compaction; full-rule or suffix reminders at configured tool/input cadence. |
 | `control-task`    | Complete durable task, revisioned `get` / `set` / `patch`, retained raw input and optional review tracking. |
 | `agent-state`     | Own reusable guides, verified immediate-parent sharing, content freshness and completed-tool reminders. |
 | `probe-hook`      | Packaged default-off diagnostic for hook, MCP and skill loading; enabled logs contain bounded metadata only.  |
@@ -254,8 +254,9 @@ in the top-level `rules/` directory, so install **both the plugin and the rule f
 The engine reloads them on each hook invocation.
 
 All nine shipped rules have full standing bodies enabled at startup and in subagents.
-`70-reasoning-poison` also has a compact reminder on **every `PostToolUse` event**,
-including execution errors, and on every new input. It preserves the distinction between reasoning
+`70-reasoning-poison` delivers its **entire current body every three completed
+`PostToolUse` calls**, including execution errors, and on every new input. The body
+includes `ОБЯЗАТЕЛЬНО СЛЕДУЙ ДОСЛОВНО ЭТОМУ ПРАВИЛУ`. It preserves the distinction between reasoning
 and evidence, invalidates conclusions built on a disproved premise, and treats an
 already-supported answer to the user as a ready action.
 
@@ -264,7 +265,7 @@ already-supported answer to the user as a ready action.
 | `SessionStart` (`startup`, `resume`, `plugin_activation`, `compact`) | Full applicable standing bodies. Compaction restores the bodies rather than relying on the summary to preserve them. |
 | `SubagentStart` | Full bodies for the child role, respecting `apply` and `send_on_subagent`. |
 | `UserPromptSubmit` | `every_input` reminders and due `every_n_turns` reminders. |
-| `PostToolUse` | `every_tool` reminders, appended as separate context without replacing the tool output. No cadence counter, tool-name restriction or success filter. |
+| `PostToolUse` | `every_tool` or due `every_n_tools` reminders, appended without replacing the tool output. No tool-name restriction or success filter. |
 
 MiniMax Code 0.6.12 restores hooks after both automatic and manual compaction through
 `SessionStart` with `source: "compact"`. Its `PostCompact` event cannot accept
@@ -286,6 +287,14 @@ A rule is a JSON file:
   }
 }
 ```
+
+`remind.send_full_rule: true` selects the complete current `body` instead of `suffix`.
+`remind.every_n_tools: 3` counts three completed tool-hook events per session,
+including each result in a batch. It is independent of user prompts and survives
+compaction/resume. Tool counters use atomic writes under a bounded per-session
+lock; missing or corrupt state reports a diagnostic without resetting the count
+or suppressing unrelated stateless rules. Existing `every_tool: true` still
+delivers on every result.
 
 `send_on_start` and `send_on_subagent` default to enabled. Set the relevant flag to
 `false` to opt out. A child keeps its subagent policy on resume and compaction.

@@ -41,6 +41,7 @@ function inputObligation(text) {
   const policy = text.replace(/\[BEGIN VERBATIM CANONICAL TASK\][\s\S]*?\[END VERBATIM CANONICAL TASK\]/gu, '')
     .replace(/^Raw prompt text \(JSON string\):[^\n]*(?:\n|$)/gmu, '');
   for (const meaning of [
+    /ОБЯЗАТЕЛЬНО ОБНОВИ ТРЕБОВАНИЯ, УСЛОВИЯ, ИЛИ ЗАДАЧУ ПОСЛЕ СООБЩЕНИЯ ПОЛЬЗОВАТЕЛЯ/u,
     /After this user message, you MUST use control_task_set\/control_task_patch to add, change or remove durable requirements/u,
     /original message adds, changes or cancels/u,
     /preserving all earlier requirements and qualifications that still apply/u,
@@ -58,7 +59,7 @@ test('actual stdio discovery is stateless; direct clients receive only pending r
     { jsonrpc: '2.0', id: 2, method: 'tools/list' },
   ], rpcOptions(f));
   assert.equal(discovery.code, 0, discovery.stderr);
-  assert.equal(discovery.responses[0].result.serverInfo.version, '0.2.2');
+  assert.equal(discovery.responses[0].result.serverInfo.version, '0.2.3');
   assert.deepEqual(discovery.responses[1].result.tools.map((value) => value.name), TOOLS.map((value) => value.name));
   assert.ok(discovery.responses[1].result.tools.every((value) => value.inputSchema.additionalProperties === false));
   for (const name of ['control_task_set', 'control_task_patch', 'control_task_confirm']) {

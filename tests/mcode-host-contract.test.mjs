@@ -158,7 +158,7 @@ fs.readFileSync = function(file, ...args) {
       'native hook dispatch executes the declared Bun binary, not the Node host executable');
   });
 
-  await t.test('successful, failing and batched tool executions retain results and receive reminders', async () => {
+  await t.test('successful, failing and batched tool executions retain results and share the full-body cadence', async () => {
     for (const isError of [false, true]) {
       const content = [{ type: 'text', text: isError ? 'original failure' : 'original success' },
         { type: 'image', mimeType: 'image/png', data: readFileSync(join(pluginRoot, 'icon.png')).toString('base64') }];
@@ -166,9 +166,9 @@ fs.readFileSync = function(file, ...args) {
       const output = await host.afterTool({ input: input('main', 'turn-1'), context: {
         toolCall: { id: `call-${isError}`, name: 'bash' }, args: {}, result, isError,
       } });
-      assert.deepEqual(output.content.slice(0, content.length), content);
-      assert.ok(output.content.at(-1).text.includes(poison.remind.suffix.trim()));
-      assert.equal(output.isError, undefined, 'the reminder must not rewrite the tool error flag');
+      assert.deepEqual(output?.content?.slice(0, content.length) ?? content, content);
+      assert.equal(output?.content?.some(block => block.text?.includes(poison.body)) ?? false, false);
+      assert.equal(output?.isError, undefined, 'the reminder must not rewrite the tool error flag');
       assert.deepEqual(result, { content, details: { ok: !isError } }, 'original result remains intact');
     }
     const batch = await Promise.all(Array.from({ length: 3 }, (_, i) => host.afterTool({
@@ -177,7 +177,7 @@ fs.readFileSync = function(file, ...args) {
         result: { content: [{ type: 'text', text: `result-${i}` }] }, isError: false,
       },
     })));
-    batch.forEach((result) => assert.ok(result.content.at(-1).text.includes(poison.remind.suffix.trim())));
+    assert.equal(batch.filter(result => result?.content?.some(block => block.text?.includes(poison.body))).length, 1);
     const events = trace().filter((event) => event.hook_event_name === 'PostToolUse');
     assert.equal(events.length, 5);
     // MINIMAX-format dispatch includes execution errors, but its stdin projection
@@ -266,11 +266,13 @@ process.stdout.write(JSON.stringify({decision: 'block', reason: ${JSON.stringify
     const restored = trace().find((event) => event.source === 'compact' && event.session_id === 'child');
     assert.equal(restored.agent_type, undefined, 'the host omits role identity after compact');
     assert.equal(restored.agent_id, undefined);
-    const childTool = await host.afterTool({ input: input('child', 'child-turn'), context: {
-      toolCall: { id: 'child-tool', name: 'read' }, args: {},
-      result: { content: [{ type: 'text', text: 'child result' }] }, isError: false,
-    } });
-    assert.ok(childTool.content.at(-1).text.includes(poison.remind.suffix.trim()));
+    for (let completed = 1; completed <= 3; completed++) {
+      const childTool = await host.afterTool({ input: input('child', 'child-turn'), context: {
+        toolCall: { id: `child-tool-${completed}`, name: 'read' }, args: {},
+        result: { content: [{ type: 'text', text: 'child result' }] }, isError: false,
+      } });
+      assert.equal(childTool?.content?.some(block => block.text?.includes(poison.body)) ?? false, completed === 3);
+    }
     const delivered = trace().find((event) => event.hook_event_name === 'PostToolUse' && event.session_id === 'child');
     assert.equal(delivered.agent_type, 'worker');
     assert.equal(delivered.agent_id, 'child-id');
@@ -293,7 +295,7 @@ process.stdout.write(JSON.stringify({decision: 'block', reason: ${JSON.stringify
     assert.equal(result.messages[0].isError, false);
     assert.equal(result.messages[1].isError, true);
     assert.match(result.messages[1].content[0].text, /Synthetic invocation failure/);
-    for (const message of result.messages) assert.ok(message.content.at(-1).text.includes(poison.remind.suffix.trim()));
+    assert.equal(result.messages.filter(message => message.content.some(block => block.text?.includes(poison.body))).length, 1);
   });
 
   await t.test('host limitation: unknown tools and argument validation failures bypass both tool hooks', async () => {

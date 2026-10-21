@@ -1,5 +1,20 @@
 # Reasoning rules: evidence, decisions and delivery
 
+## Current delivery update — 2026-10-21
+
+The existing engine now supports `remind.every_n_tools` and
+`remind.send_full_rule`. Rule 70 selects its complete current `body` on every
+third completed tool-hook event and on each new input; its body includes
+`ОБЯЗАТЕЛЬНО СЛЕДУЙ ДОСЛОВНО ЭТОМУ ПРАВИЛУ`. Startup, child start and
+compaction still restore full standing bodies. Per-session tool counts are
+independent of prompt counts and protected by a bounded inherited-fd `flock`
+through their atomic update. Error results count; corrupt state is preserved
+and diagnosed, without suppressing stateless rules.
+
+The archive review and original verification below describe the earlier
+151-word, every-tool suffix implementation. The current cadence supersedes
+that delivery setting; the substantive reasoning invariant remains intact.
+
 ## Scope
 
 This change makes the general reasoning-poison invariant available from the first

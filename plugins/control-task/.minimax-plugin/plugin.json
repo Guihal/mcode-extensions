@@ -1,14 +1,18 @@
 {
   "schemaVersion": 1,
   "name": "control-task",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Durable session task with atomic revisions, original input history and optional review metadata; restoration and bookkeeping never block the agent workflow.",
   "author": "penis",
   "icon": "icon.png",
   "category": "Other",
   "exampleQueries": [],
   "apps": [],
-  "mcpServers": ["control-task.mcp.json"],
+  "mcpServers": [
+    "control-task.mcp.json"
+  ],
   "skills": [],
-  "hooks": ["hooks/hooks.json"]
+  "hooks": [
+    "hooks/hooks.json"
+  ]
 }

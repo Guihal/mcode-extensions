@@ -52,9 +52,9 @@ exposing original functions in disposable copies. See the
 
 | Package | Version | Native tools |
 | --- | --- | --- |
-| `control-task` | 0.2.2 | `control_task_get`, `control_task_set`, `control_task_patch`, optional `control_task_confirm` |
+| `control-task` | 0.2.3 | `control_task_get`, `control_task_set`, `control_task_patch`, optional `control_task_confirm` |
 | `agent-state` | 0.2.2 | `agent_state_note`, `agent_state_checkpoint` |
-| `injection-rules` | 0.2.1 | Hook delivery; no MCP server |
+| `injection-rules` | 0.2.2 | Hook delivery; no MCP server |
 | `probe-hook` | 0.1.1 | `probe_echo`, disabled through packaged configuration by default |
 
 ## Why a tool first returns pending

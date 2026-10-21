@@ -16,7 +16,7 @@ import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import {
   cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, readlinkSync, realpathSync,
-  rmSync, statSync, symlinkSync, writeFileSync,
+  rmSync, statSync, symlinkSync, writeFileSync, chmodSync,
 } from 'node:fs';
 import os from 'node:os';
 import { createRequire, syncBuiltinESMExports } from 'node:module';
@@ -155,6 +155,15 @@ async function fixture(t) {
     syncBuiltinESMExports();
     for (const name of Object.keys(process.env)) delete process.env[name];
     Object.assign(process.env, previousEnv);
+    // The native materializer freezes snapshot directories. Restore only our
+    // owned fixture's directories so cleanup can unlink their contents.
+    const writable = (directory) => {
+      chmodSync(directory, 0o700);
+      for (const entry of readdirSync(directory, { withFileTypes: true })) {
+        if (entry.isDirectory()) writable(join(directory, entry.name));
+      }
+    };
+    writable(root);
     rmSync(root, { recursive: true, force: true });
   });
   for (const name of pluginNames) cpSync(join(repo, 'plugins', name), join(dataDir, 'plugins', name), { recursive: true });
@@ -238,7 +247,12 @@ async function fixture(t) {
     assert.equal(typeof text, 'string');
     for (const rule of rules) assert.ok(text.includes(rule.body.trim()), `Missing full standing body ${rule.name}`);
   };
-  const assertReminder = (message) => assert.ok(textOf(message).includes(poison.remind.suffix.trim()), 'Every executed tool receives the shipped reasoning-poison suffix');
+  // Cadence is checked by the injection/native hook suites; port receipts must
+  // preserve the complete rule whenever its periodic delivery occurs.
+  const assertReminder = (message) => {
+    const text = textOf(message);
+    if (text.includes('[70-reasoning-poison]')) assert.ok(text.includes(poison.body), 'No truncated rule in port result');
+  };
 
   // Actual published DDL and record codecs; only SQLite connection/insertion is
   // fixture-owned. This does not pretend to run the optional native host writer.

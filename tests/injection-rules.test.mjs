@@ -74,7 +74,7 @@ function fixture(t, rules = []) {
     });
     child.stdin.end(JSON.stringify({ hook_event_name: event, session_id: 'session-a', ...payload }));
   });
-  const counter = (session) => join(data, 'prompt-counts', `${createHash('sha256').update(session).digest('hex')}.json`);
+  const counter = (session, kind = 'prompt') => join(data, `${kind}-counts`, `${createHash('sha256').update(session).digest('hex')}.json`);
   return { root, data, pluginRoot, userRules, put, call, callAsync, counter };
 }
 
@@ -251,7 +251,7 @@ test('concurrent sessions keep independent prompt counters across process restar
   for (const session of sessions) assert.equal(JSON.parse(readFileSync(f.counter(session))).turn, 3);
 });
 
-test('shipped full rules reach start/compact/child contexts and reasoning poison reaches every tool', (t) => {
+test('shipped full rules reach lifecycle boundaries and every third completed tool receives the exact full poison body', (t) => {
   const f = fixture(t);
   const rules = readdirSync(join(repo, 'rules')).filter((name) => name.endsWith('.json') && !name.startsWith('_'))
     .map((name) => JSON.parse(readFileSync(join(repo, 'rules', name), 'utf8')));
@@ -263,5 +263,42 @@ test('shipped full rules reach start/compact/child contexts and reasoning poison
     assert.ok(Buffer.byteLength(out.stdout) < 64 * 1024, 'inside 0.6.12 command stdout budget');
   }
   const poison = rules.find((value) => value.name === '70-reasoning-poison');
-  assert.equal(f.call('PostToolUse', { tool_name: 'bash', is_error: true }).text, poison.remind.suffix.trim());
+  assert.ok(poison.body.includes('ОБЯЗАТЕЛЬНО СЛЕДУЙ ДОСЛОВНО ЭТОМУ ПРАВИЛУ'));
+  for (let call = 1; call <= 7; call++) {
+    const out = f.call('PostToolUse', { tool_name: 'bash', is_error: call % 2 === 0 });
+    assert.equal(out.text, call % 3 === 0 ? poison.body : '');
+    if (call === 2) {
+      f.call('UserPromptSubmit');
+      f.call('SessionStart', { source: 'compact' });
+    }
+  }
+  assert.equal(f.call('PostToolUse', { session_id: 'child', agent_type: 'worker' }).text, '');
+  assert.equal(f.call('PostToolUse', { session_id: 'child', agent_type: 'worker' }).text, '');
+  assert.equal(f.call('PostToolUse', { session_id: 'child', agent_type: 'worker' }).text, poison.body);
+});
+
+test('concurrent same-session tool completions preserve exact cadence without storing tool content', async (t) => {
+  const full = rule('full', { body: '  FULL RULE WITH ALL WHITESPACE\n', remind: { every_n_tools: 3, send_full_rule: true, suffix: 'WRONG SUFFIX' } });
+  const f = fixture(t, [full]);
+  const outputs = await Promise.all(Array.from({ length: 12 }, (_, i) => f.callAsync('PostToolUse', {
+    tool_name: 'read', tool_use_id: `call-${i}`, tool_input: { secret: 'DO NOT STORE' },
+  })));
+  outputs.forEach(out => assert.equal(out.stderr, ''));
+  assert.equal(outputs.filter(out => out.text === full.body).length, 4);
+  assert.equal(outputs.filter(out => out.text === '').length, 8);
+  assert.equal(readFileSync(f.counter('session-a', 'tool'), 'utf8'), '{"turn":12}\n');
+  assert.equal(existsSync(join(f.data, 'prompt-counts')), false);
+});
+
+test('missing or corrupt tool cadence does not fabricate delivery or hide stateless rules', (t) => {
+  const f = fixture(t, [rule('stateless'), rule('periodic', { remind: { every_n_tools: 3, send_full_rule: true } })]);
+  const missing = f.call('PostToolUse', { session_id: null });
+  assert.equal(missing.text, 'REMIND stateless');
+  assert.match(missing.stderr, /TOOL_CADENCE_SKIPPED_NO_SESSION/);
+  mkdirSync(dirname(f.counter('session-a', 'tool')), { recursive: true });
+  writeFileSync(f.counter('session-a', 'tool'), '{');
+  const corrupt = f.call('PostToolUse');
+  assert.equal(corrupt.text, 'REMIND stateless');
+  assert.match(corrupt.stderr, /TOOL_CADENCE_STATE_UNAVAILABLE/);
+  assert.equal(readFileSync(f.counter('session-a', 'tool'), 'utf8'), '{');
 });

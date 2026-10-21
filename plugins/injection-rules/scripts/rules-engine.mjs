@@ -4,7 +4,7 @@
  *
  * SessionStart, including source=compact, and SubagentStart deliver full bodies.
  * UserPromptSubmit delivers input/cadence reminders; PostToolUse delivers only
- * every_tool reminders. The host appends PostToolUse context to successful AND
+ * every_tool/every_n_tools reminders. The host appends context to successful AND
  * failed tool results. PostCompact itself cannot accept additionalContext.
  *
  * User rules override bundled defaults by name. stdout is reserved for the host
@@ -12,8 +12,9 @@
  */
 import {
   appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync,
-  statSync, unlinkSync, writeFileSync,
+  statSync, unlinkSync, writeFileSync, openSync, closeSync, fstatSync, constants,
 } from 'node:fs';
+import { spawnSync } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -154,23 +155,32 @@ function resolveIdentity(payload, eventName, sessionId) {
   return identity;
 }
 
-function nextPromptCount(sessionId) {
+function nextCount(sessionId, kind = 'prompt') {
+  const diagnosticPrefix = kind.toUpperCase();
   if (!sessionId) {
-    diagnostic('PROMPT_CADENCE_SKIPPED_NO_SESSION');
+    diagnostic(`${diagnosticPrefix}_CADENCE_SKIPPED_NO_SESSION`);
     return null;
   }
-  // The host serializes accepted user prompts within one session. Separate files
-  // prevent concurrent sessions from overwriting each other's counters. Tool
-  // hooks never read/write these files. Hash IDs instead of using them as paths.
-  const countersDir = join(STATE_DIR, 'prompt-counts');
+  // Input and tool cadences are independent. The host serializes user prompts;
+  // parallel tool completions retain an inherited-descriptor flock until write.
+  const countersDir = join(STATE_DIR, `${kind}-counts`);
   const path = join(countersDir, sessionFilename(sessionId));
-  let previous = 0;
+  let previous = 0, lock;
   try {
+    if (kind === 'tool') {
+      mkdirSync(countersDir, { recursive: true });
+      lock = openSync(`${path}.lock`, constants.O_CREAT | constants.O_RDWR | constants.O_NOFOLLOW | constants.O_NONBLOCK, 0o600);
+      if (!fstatSync(lock).isFile()) throw new Error('invalid lock');
+      const result = spawnSync('/usr/bin/flock', ['-x', '-w', '2', '-E', '75', '3'], {
+        stdio: ['ignore', 'ignore', 'ignore', lock], timeout: 2500, killSignal: 'SIGKILL',
+      });
+      if (result.status !== 0) throw new Error('counter lock unavailable');
+    }
     if (existsSync(path)) {
       const state = JSON.parse(readFileSync(path, 'utf8'));
       if (!validTurn(state?.turn)) throw new Error('invalid counter');
       previous = state.turn;
-    } else {
+    } else if (kind === 'prompt') {
       // Keep a previously installed engine's cadence on the first new prompt.
       const legacyPath = join(STATE_DIR, 'turns.json');
       if (existsSync(legacyPath)) {
@@ -186,8 +196,10 @@ function nextPromptCount(sessionId) {
   } catch {
     // No invented/reset counter after corrupted state or a failed write. Input
     // reminders still fire; only the cadence that could not be established skips.
-    diagnostic('PROMPT_CADENCE_STATE_UNAVAILABLE');
+    diagnostic(`${diagnosticPrefix}_CADENCE_STATE_UNAVAILABLE`);
     return null;
+  } finally {
+    if (lock !== undefined) closeSync(lock);
   }
 }
 
@@ -205,11 +217,16 @@ function reminderText(rules, eventName, turn) {
   return rules.filter((rule) => {
     const remind = rule.remind;
     if (!remind || typeof remind !== 'object') return false;
-    if (eventName === 'PostToolUse') return remind.every_tool === true;
+    if (eventName === 'PostToolUse') {
+      if (remind.every_tool === true) return true;
+      const cadence = remind.every_n_tools;
+      return turn !== null && Number.isSafeInteger(cadence) && cadence > 0 && turn % cadence === 0;
+    }
     if (remind.every_input === true) return true;
     const cadence = Number(remind.every_n_turns);
     return turn !== null && Number.isSafeInteger(cadence) && cadence > 0 && turn % cadence === 0;
-  }).map((rule) => typeof rule.remind.suffix === 'string' ? rule.remind.suffix.trim() : '')
+  }).map((rule) => rule.remind.send_full_rule === true ? rule.body
+    : typeof rule.remind.suffix === 'string' ? rule.remind.suffix.trim() : '')
     .filter(Boolean).join('\n\n');
 }
 
@@ -228,7 +245,9 @@ function main() {
   if (eventName === 'SessionStart' || eventName === 'SubagentStart') {
     text = startupText(rules, isSubagent);
   } else {
-    const turn = eventName === 'UserPromptSubmit' ? nextPromptCount(sessionId) : null;
+    const periodicTools = rules.some(({ remind }) => Number.isSafeInteger(remind?.every_n_tools) && remind.every_n_tools > 0);
+    const turn = eventName === 'UserPromptSubmit' ? nextCount(sessionId)
+      : periodicTools ? nextCount(sessionId, 'tool') : null;
     text = reminderText(rules, eventName, turn);
   }
   if (text) process.stdout.write(`${JSON.stringify({

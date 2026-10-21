@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "name": "injection-rules",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Standing rules at session/subagent start and after compaction; reminders on every tool result, input, or configured user-prompt cadence. Rules live in ~/.minimax/rules.",
   "author": "penis",
   "icon": "icon.png",
@@ -10,5 +10,7 @@
   "apps": [],
   "mcpServers": [],
   "skills": [],
-  "hooks": ["hooks/hooks.json"]
+  "hooks": [
+    "hooks/hooks.json"
+  ]
 }

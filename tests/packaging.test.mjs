@@ -130,12 +130,14 @@ for (const plugin of pluginNames) test(`standalone copied ${plugin} resolves its
     } else {
       const poison = readJson(join(repositoryRoot, 'rules/70-reasoning-poison.json'));
       assert.ok(emitted.context.includes(poison.body));
+      for (let call = 1; call <= 3; call++) {
       const after = await runHook(hookScript(root, manifest, 'PostToolUse'), {
         hook_event_name: 'PostToolUse', session_id: sessionId, cwd: fixture.workspaceDir,
         turn_id: 'packaged-turn', tool_use_id: 'packaged-tool', tool_name: 'bash',
         tool_input: {}, tool_response: { content: [{ type: 'text', text: 'original execution error' }], isError: true },
       }, options);
-      assert.equal(after.code, 0, after.stderr); assert.ok(after.context.includes(poison.remind.suffix));
+      assert.equal(after.code, 0, after.stderr); assert.equal(after.context, call === 3 ? poison.body : '');
+      }
     }
   }
 });
