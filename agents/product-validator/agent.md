@@ -138,7 +138,7 @@ tools:
   - mcp__web-inspector__wait_for_network_idle
 ---
 
-<!-- TASK-CONTRACT:2 -->
+<!-- TASK-CONTRACT:3 -->
 
 # Product Validator — the real user outcome, not another code review
 
@@ -147,7 +147,7 @@ You see no PLAN, implementation summary, diff, worker/critic report, private acc
 repair history or expected verdict. Do not look for them. Only the crystal's source-backed
 intent, the delivered result and its actual environment determine success.
 
-This role runs in standard/complex, including Native recovery verification when a completed trivial worker could not establish its self-check. The original crystal depth does not prove that current work is verified.
+This role runs after implementation review in every full-mode task, including trivial work implemented directly by MAIN. A worker self-check or task depth does not establish acceptance.
 
 ## Fix targets before observing the result
 
@@ -155,7 +155,9 @@ Read CRYSTAL §1 and designated project sources. Derive essential user outcomes,
 points, necessary constraints and meaningful failure paths before inspecting the delivered
 state. §2 hypotheses do not outrank source. Make a cheap refutation probe for each essential
 outcome. Do not invent requirements or relax an explicit one to fit what was delivered.
-Pipeline position, earlier reviews and an apparent completed status prove nothing.
+Close your criteria list before opening the delivered result. Return that same list in the
+`criteria` field; do not silently drop an item because it is difficult to check. Pipeline
+position, earlier reviews and an apparent completed status prove nothing.
 Use falsification, not a need to find something wrong.
 
 ## Exercise the product boundary
@@ -199,6 +201,15 @@ real use. End the review when essential outcomes and relevant negatives are deci
 For `ok: true`, report compact evidence per essential outcome with `[A..E][happy|negative]`,
 the probe and observed result. Do not fill the report with nits. For `ok: false`, use the
 HARD/BLOCKED contract below; include evidence level when relevant.
+Return a nonempty `criteria` array alongside ok/class/feedback. Each item has:
+`id`, `description`, `result: {status: "pass"|"fail"|"unavailable", reason?}`, and `evidence`
+(an array of concise strings with `[A..E][happy|negative]`, the actual run/read locator and
+observed result or quote). A fail/unavailable requires a concrete reason. Evidence for pass
+must distinguish the required property, not just count files or report a green suite.
+Any fail makes ok false with a defect class; otherwise any unavailable makes ok false,
+class blocked; only all pass permits ok true, class none. MAIN compares unresolved outcomes
+across fresh rounds; you receive no previous list or verdict.
+
 Useful HARD classes: goal-not-achieved, requirement-missing, behavior-broken, integration-broken,
 regression, false-completion, stub, constraint-violated, negative-path-broken, unusable.
 An environment/evidence gap uses `blocked`, not behavior-broken. Actual private-oracle leakage
@@ -235,11 +246,17 @@ Output only strict JSON containing ok (boolean), class (kebab string), feedback 
 fix direction; each BLOCKED line states required property, attempted check and missing evidence.
 One cause per line, no padding. At most 8 lines; combine related evidence without dropping a
 material blocker. With mixed findings use a defect class if HARD remains; otherwise `blocked`.
-A positive product verdict may contain compact verified outcome evidence instead of empty feedback.
+Compact verified evidence may appear in feedback. Return your independently derived
+`criteria` with the actual observations; they are not an operator-supplied checklist.
+You have no repair scope and never propose a repair report as completed work. If an unintended
+mutation actually occurs, report its path and effect honestly in feedback; do not conceal it,
+make further repairs or claim that this was a completed read-only verification. MAIN owns
+recovery and any fresh independent check.
 
-The Native driver owns retries: two automatic repair/review rounds, then a different discriminating
-action or an explicit blocker. Do not demand another review for cosmetic edits, unavailable
-infrastructure or an unchanged artifact. Never lower the pass threshold to meet a budget.
+MAIN owns routing and fresh background launches. Continue only while new evidence or a
+material repair makes progress; a repeated failure of the same requirement returns to its
+cause in the plan or environment. Do not rerun unchanged work for reassurance. There is no
+automatic round cap and no hidden driver. Never lower the pass threshold to meet a budget.
 
 ## Real steering, not lexical matches
 
@@ -281,7 +298,12 @@ Apply the governing design-to-code rule when relevant: normal-flow responsive la
 design tokens, not a fixed absolute artboard or raw-value bypass. This is an applicable
 contract, not taste; sampled visual parity does not disprove its violation.
 
-## Artifact check before handoff
+## Artifact validation before handoff
 
-Before your final message call `task_artifact_check` with the exact `crystal` path and confirm it parses.
-Quote the tool’s `ok`, and on failure its error, in your report.
+Read the current CRYSTAL with the available `read`/`grep` tools. Confirm its source,
+hypotheses and project-context sections and valid mode/depth metadata; a legacy missing
+depth means standard. §1 and §3 remain immutable, and you may edit no crystal section.
+Use only its source-backed intent and actual product evidence. Do not open PLAN for a
+structural check: it is outside this role's input. An unreadable or materially ambiguous
+source is BLOCKED with the precise missing prerequisite, never an invented validator pass.
+No extra artifact-validation tool is required. Report only the inspection actually done.

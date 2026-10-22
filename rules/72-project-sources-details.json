@@ -3,18 +3,19 @@
   "apply": [
     "*"
   ],
-  "_tier": "T1",
-  "_derives": "ported verbatim from zcode reasoning-poison@personal reminder-text.mjs",
-  "_core": [
-    "reminder",
-    "cadence:17"
-  ],
   "send_on_start": true,
   "send_on_subagent": true,
-  "body": "[72-project-sources-details]\n\n[Project sources — details reminder]\n\nAt task entry or before substantive work in new area, discover governing instructions, project sources and applicable skills. Read needed content, conditions, exceptions and decisive truncated material. Scope/obligations established → proceed. Reopen only what new work, changed instructions or contrary evidence makes relevant.",
+  "body": "[72-project-sources-details] Выбирай по действующим источникам\n\nЖелаемое поведение\nНачинай с названной системы и прочитанных инструкций; вызывай инструменты по актуальным схемам.\n\nИсполнимый контракт\n1. На входе в работу или новую область найди governing instructions, нужные проектные источники и доступные skills по именам/описаниям. Выбери минимальный достаточный набор, включая обязательные и явно запрошенные.\n2. Прочитай выбранный skill до регулируемой работы, нужные references — к соответствующему шагу. Соблюдай workflow, gates, role permissions и handoffs. Описание помогает discovery, но не заменяет инструкцию.\n3. Проверь текущую schema нужного tool и решающие условия/исключения источника; получи пропущенную часть усечённого вывода, если она влияет на решение. Неизвестный или version-specific интерфейс уточни по установленному коду, schema или первичной документации.\n4. Если capability или обязательный workflow недоступен, установи точный пробел. Допустимый эквивалент сохраняет свойство, но не доказывает работу исходного механизма. Сообщи обязательный незакрытый gate, продолжая доступную разрешённую работу.\n\nИнструменты и skills\nread/grep/glob/bash, skill loader и актуальная MCP schema — по источнику. Подробный snapshot73skills/116tools: docs/standing-rules/04-bindings.md; он не подтверждает текущую установку или исполнение. Повторно выбирай skills при существенной смене деятельности.\n\nСвязи: 01-operating-principle, 74-use-context-frontier, 75-evidence-or-blocker, 80-independent-review.\n\nАнтипаттерны\nЗнакомство вместо чтения обязательного skill; выдуманный tool/API; соседний продукт вместо названного; bulk-loading несвязанных skills; silent skip gate или ложный pass.",
   "remind": {
-    "every_n_turns": 17,
-    "suffix": "[Project sources — details reminder]\n\nAt task entry or before substantive work in new area, discover governing instructions, project sources and applicable skills. Read needed content, conditions, exceptions and decisive truncated material. Scope/obligations established → proceed. Reopen only what new work, changed instructions or contrary evidence makes relevant.\n"
+    "every_n_tools": 13,
+    "suffix": "[72-project-sources-details] Начинай с названной системы и прочитанных инструкций; вызывай инструменты по актуальным схемам. Контракт: 1. На входе в работу или новую область найди governing instructions, нужные проектные источники и доступные skills по именам/описаниям. Выбери минимальный достаточный набор, включая обязательные и явно запрошенные. Связи: 01-operating-principle, 74-use-context-frontier, 75-evidence-or-blocker, 80-independent-review."
   },
-  "_comment": "MiniMax Code cadence: every_n_turns counts UserPromptSubmit events, not model responses or tool calls. Full body is delivered on SessionStart (including compact/resume) and SubagentStart; reminder suffix follows its configured cadence."
+  "_contract": {
+    "steps": [
+      "S2",
+      "S4"
+    ],
+    "source": "docs/standing-rules/03-contracts.md"
+  },
+  "_comment": "Полное тело на startup/resume/compact и SubagentStart. Периодические напоминания считают завершённые PostToolUse, включая ошибки исполнения; inputs считаются отдельно."
 }

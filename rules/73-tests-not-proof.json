@@ -3,20 +3,19 @@
   "apply": [
     "*"
   ],
-  "_tier": "T1",
-  "_derives": "user instruction 2026-10-11: tests are not proof of work; proof is product behavior + logs",
-  "_core": [
-    "tests",
-    "proof",
-    "behavior",
-    "logs"
-  ],
   "send_on_start": true,
   "send_on_subagent": true,
-  "body": "[73-tests-not-proof]\n\n[Tests are not proof of a working product]\n\nPassing tests, typecheck, build or lint prove only those signals; they do NOT establish that the product works. Proof of work is observed real runtime behavior plus the relevant logs.\nExercise the actual scenario, inspect its observable result and the corresponding logs, and report the conditions and any unverified behavior. A test name, assertion count or green suite proves no untested property.\nWhen a requirement-backed behavior matters, verify it through direct runtime probes and logs, not by trusting the test that claims to cover it; one passing check never establishes full related coverage.",
+  "body": "[73-tests-not-proof] Проверяй наблюдаемое поведение\n\nЖелаемое поведение\nПодтверждай результат реальным сценарием и относящимися к нему логами после последней существенной правки.\n\nИсполнимый контракт\n1. Выведи проверяемое свойство и различающий сценарий из требований, независимо от готового кода, теста или объяснения. Выбери минимальный достаточный способ наблюдения.\n2. Выполни реальный сценарий в установленном состоянии, осмотри результат и релевантные логи. Тест/build/typecheck/lint подтверждает только непосредственно измеренное. Прямое исполнение настоящего механизма внутри теста полезно, когда видны решающие условия и результат.\n3. Для UI после последней значимой правки получи и осмотри настоящий render; измерения, читаемые screenshots и взаимодействие проверяют разные свойства. Для текста непосредственно проверь содержание, смысл, полноту и пригодность.\n4. Сравни с прогнозом и существенными ошибочными альтернативами. Не позволяй одному сбою маскировать независимые свойства. Исправь воспроизведённое нарушение и повтори затронутую проверку.\n5. Зафиксируй условия, наблюдения и непроверенное; останови расширение проверок, когда существенная неопределённость и обязательные gates закрыты.\n\nИнструменты и skills\nbash/native runtime — фактическое исполнение; UI: доступный web-inspector/browser/desktop и соответствующий skill. Screenshot обязательно осматривается; get_console_logs и relevant network details по сценарию. Недоступные логи/среду обозначь как ограничение.\n\nСвязи: 70-reasoning-poison, 75-evidence-or-blocker, 77-layout-model-and-verification, 80-independent-review.\n\nАнтипаттерны\nЗелёный набор или verdict как доказательство всего продукта; screenshot, который не посмотрел; проверки вместо реализации; изменение критерия ради pass; единичный пример как весь охват.",
   "remind": {
-    "every_n_turns": 9,
-    "suffix": "[Tests are not proof of a working product]\n\nPassing tests, typecheck, build or lint prove only those signals; they do NOT establish that the product works. Proof of work is observed real runtime behavior plus the relevant logs.\nExercise the actual scenario, inspect its observable result and the corresponding logs, and report the conditions and any unverified behavior. A test name, assertion count or green suite proves no untested property.\nWhen a requirement-backed behavior matters, verify it through direct runtime probes and logs, not by trusting the test that claims to cover it; one passing check never establishes full related coverage."
+    "every_n_tools": 7,
+    "suffix": "[73-tests-not-proof] Подтверждай результат реальным сценарием и относящимися к нему логами после последней существенной правки. Контракт: 1. Выведи проверяемое свойство и различающий сценарий из требований, независимо от готового кода, теста или объяснения. Выбери минимальный достаточный способ наблюдения. Связи: 70-reasoning-poison, 75-evidence-or-blocker, 77-layout-model-and-verification, 80-independent-review."
   },
-  "_comment": "MiniMax Code cadence: every_n_turns counts UserPromptSubmit events, not model responses or tool calls. Full body is delivered on SessionStart (including compact/resume) and SubagentStart; reminder suffix follows its configured cadence."
+  "_contract": {
+    "steps": [
+      "S4",
+      "S6"
+    ],
+    "source": "docs/standing-rules/03-contracts.md"
+  },
+  "_comment": "Полное тело на startup/resume/compact и SubagentStart. Периодические напоминания считают завершённые PostToolUse, включая ошибки исполнения; inputs считаются отдельно."
 }

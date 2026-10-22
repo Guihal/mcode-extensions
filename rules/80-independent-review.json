@@ -1,0 +1,20 @@
+{
+  "name": "80-independent-review",
+  "apply": [
+    "*"
+  ],
+  "send_on_start": true,
+  "send_on_subagent": true,
+  "body": "[80-independent-review] Проверяй результат независимо в фоне\n\nЖелаемое поведение\nВладелец поставки получает независимый implementation review; brief позволяет критику самостоятельно оценить исходную задачу.\n\nИсполнимый контракт\n1. Если выполняется task-cycle, используй предусмотренный им implementation-critic. Вне task-skill после изменений и до завершения обязательно запусти установленного implementation-critic в фоне. Второй дублирующий critic поверх того же task-cycle не нужен.\n2. Любому критику передай задачу в общем виде, исходные требования и нейтральные пути необходимых артефактов. В task-cycle используй CRYSTAL/PLAN по точному payload; вне цикла — TASK: <absolute path> к нейтральному brief с исходным поручением, источниками и явной областью. Проверяющий сам выводит критерии; отсутствие права редактировать не превращает дефект результата в pass. Соблюдай фактический контракт роли.\n3. Все субагенты всегда background. В mcode используй текущую task schema, точный agent_name установленной роли и run_in_background:true; при коллизии имени используй предусмотренную schema квалификацию. В иной среде используй её настоящий асинхронный механизм. Текст «ты critic» не устанавливает custom role.\n4. Дождись результата перед объявлением поставки готовой. Исправь доказанные дефекты в пределах полномочий и обнови затронутые свидетельства; повтори предусмотренный workflow gate после repairs.\n5. Review/acceptance roles выполняют свои разрешения, включая repair либо read-only. Leaf reviewer не запускает проверяющего для собственного verdict; task worker возвращает результат владельцу, который отвечает за gate. Если точная роль недоступна, сообщи конфигурационный блокер; ad-hoc review допустим как отдельная помощь, но не считается выполнением native gate.\n\nИнструменты и skills\nОбязательно прочитай task/роль, когда они применяются. Структуру входных файлов проверяй настоящими read/search/bash по контракту роли, без выдуманного task_artifact_check. task(agent_name,description,prompt,run_in_background:true), затем task_output по actual schema. Только установленная роль и действительный завершённый запуск подтверждают role gate.\n\nСвязи: 01-operating-principle, 72-project-sources-details, 73-tests-not-proof, 75-evidence-or-blocker.\n\nАнтипаттерны\nСинхронный запуск; защита своей реализации, подсказанный verdict или готовый список «почему всё правильно» в brief; self-review как независимость; фиктивный named role; pending как pass; recursive critic chain.",
+  "remind": {
+    "every_n_tools": 31,
+    "suffix": "[80-independent-review] Владелец поставки получает независимый implementation review; brief позволяет критику самостоятельно оценить исходную задачу. Контракт: 1. Если выполняется task-cycle, используй предусмотренный им implementation-critic. Вне task-skill после изменений и до завершения обязательно запусти установленного implementation-critic в фоне. Второй дублирующий critic поверх того же task-cycle не нужен. Связи: 01-operating-principle, 72-project-sources-details, 73-tests-not-proof, 75-evidence-or-blocker."
+  },
+  "_contract": {
+    "steps": [
+      "S5"
+    ],
+    "source": "docs/standing-rules/03-contracts.md"
+  },
+  "_comment": "Полное тело на startup/resume/compact и SubagentStart. Периодические напоминания считают завершённые PostToolUse, включая ошибки исполнения; inputs считаются отдельно."
+}

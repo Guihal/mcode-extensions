@@ -129,14 +129,17 @@ for (const plugin of pluginNames) test(`standalone copied ${plugin} resolves its
       assert.equal(emitted.stdout, ''); assert.equal(fs.existsSync(fixture.pluginDataDir), false);
     } else {
       const poison = readJson(join(repositoryRoot, 'rules/70-reasoning-poison.json'));
+      const operating = readJson(join(repositoryRoot, 'rules/01-operating-principle.json'));
       assert.ok(emitted.context.includes(poison.body));
+      assert.equal(poison.remind.every_n_tools, 2);
       for (let call = 1; call <= 3; call++) {
-      const after = await runHook(hookScript(root, manifest, 'PostToolUse'), {
-        hook_event_name: 'PostToolUse', session_id: sessionId, cwd: fixture.workspaceDir,
-        turn_id: 'packaged-turn', tool_use_id: 'packaged-tool', tool_name: 'bash',
-        tool_input: {}, tool_response: { content: [{ type: 'text', text: 'original execution error' }], isError: true },
-      }, options);
-      assert.equal(after.code, 0, after.stderr); assert.equal(after.context, call === 3 ? poison.body : '');
+        const after = await runHook(hookScript(root, manifest, 'PostToolUse'), {
+          hook_event_name: 'PostToolUse', session_id: sessionId, cwd: fixture.workspaceDir,
+          turn_id: 'packaged-turn', tool_use_id: 'packaged-tool', tool_name: 'bash',
+          tool_input: {}, tool_response: { content: [{ type: 'text', text: 'original execution error' }], isError: true },
+        }, options);
+        assert.equal(after.code, 0, after.stderr);
+        assert.equal(after.context, ['', poison.body, operating.remind.suffix.trim()][call - 1]);
       }
     }
   }
@@ -192,6 +195,8 @@ test('documented complete-root upgrade preserves existing MCP/config/credentials
     'auth.json': '{"token":"SYNTHETIC_CREDENTIAL_SENTINEL"}',
     'permission.json': '{"synthetic":"existing-permission-policy"}',
     'AGENTS.md': 'Existing machine instructions retained in backup.\n',
+    'docs/standing-rules/03-contracts.md': 'Existing contracts retained in backup.\n',
+    'docs/local-guide.md': 'Existing unrelated documentation.\n',
     'plugins/custom-plugin/local.txt': 'Existing unrelated plugin file.\n',
     'v2/plugin-data/hooks/control-task/control-task/sessions/preserved.json': '{"sessionId":"preserved","taskBody":"Keep this original task","updatedAt":"2026-01-01T00:00:00.000Z"}',
     'v2/plugin-data/hooks/agent-state/agent-state/sessions/preserved/original.md': '# Original retained guide\n',
@@ -199,17 +204,34 @@ test('documented complete-root upgrade preserves existing MCP/config/credentials
   for (const [path, text] of Object.entries(sentinels)) {
     fs.mkdirSync(dirname(join(fixture.dataDir, path)), { recursive: true }); fs.writeFileSync(join(fixture.dataDir, path), text);
   }
+  const userRules = join(fixture.env.HOME, '.minimax/rules');
+  fs.mkdirSync(userRules, { recursive: true });
+  const customRule = '{"name":"local-policy","body":"Preserve my local policy.","apply":["*"]}';
+  const modifiedLegacy = '{"name":"10-goal-and-outcome","body":"User-modified legacy content."}';
+  fs.writeFileSync(join(userRules, 'local-policy.json'), customRule);
+  fs.writeFileSync(join(userRules, '10-goal-and-outcome.json'), modifiedLegacy);
   const executed = spawnSync('/bin/sh', ['-c', documentedShellBlock('install-upgrade')], {
     cwd: repositoryRoot, env: fixture.env, encoding: 'utf8', timeout: 12000,
   });
   assert.equal(executed.status, 0, executed.stderr);
   for (const [path, text] of Object.entries(sentinels)) {
-    if (path === 'AGENTS.md') continue;
+    if (path === 'AGENTS.md' || path === 'docs/standing-rules/03-contracts.md') continue;
     assert.equal(fs.readFileSync(join(fixture.dataDir, path), 'utf8'), text, `existing ${path} preserved`);
   }
   const backup = fs.readdirSync(join(fixture.dataDir, 'extension-backups'));
   assert.equal(backup.length, 1);
   assert.equal(fs.readFileSync(join(fixture.dataDir, 'extension-backups', backup[0], 'AGENTS.md'), 'utf8'), sentinels['AGENTS.md']);
+  assert.equal(fs.readFileSync(join(fixture.dataDir, 'extension-backups', backup[0], 'docs/standing-rules/03-contracts.md'), 'utf8'),
+    sentinels['docs/standing-rules/03-contracts.md']);
+  for (const name of ['01-inventory.md', '02-desired-behavior.md', '03-contracts.md', '04-bindings.md', 'capabilities.json']) {
+    assert.deepEqual(fs.readFileSync(join(fixture.dataDir, 'docs/standing-rules', name)),
+      fs.readFileSync(join(repositoryRoot, 'docs/standing-rules', name)));
+  }
+  for (const [name, content] of [['local-policy.json', customRule], ['10-goal-and-outcome.json', modifiedLegacy]]) {
+    assert.equal(fs.readFileSync(join(userRules, name), 'utf8'), content, `unrecognized ${name} is retained`);
+    assert.equal(fs.readFileSync(join(fixture.dataDir, 'extension-backups', backup[0], 'user-rules', name), 'utf8'), content);
+  }
+  assert.match(executed.stderr, /Retained modified legacy candidate.*10-goal-and-outcome/);
   for (const plugin of pluginNames) {
     assert.deepEqual(fs.readFileSync(join(fixture.dataDir, 'plugins', plugin, '.minimax-plugin/plugin.json')),
       fs.readFileSync(join(repositoryRoot, 'plugins', plugin, '.minimax-plugin/plugin.json')));
@@ -223,6 +245,36 @@ test('documented complete-root upgrade preserves existing MCP/config/credentials
     fs.readFileSync(join(repositoryRoot, 'rules/70-reasoning-poison.json')));
   assert.ok(fs.existsSync(join(fixture.dataDir, 'skills/task/SKILL.md')));
   assert.deepEqual(readJson(join(fixture.dataDir, 'plugins/probe-hook/probe.config.json')), { enabled: false });
+});
+
+test('upgrade retires only a known legacy fingerprint after backup, retaining changed files and symlinks', t => {
+  const fixture = makeFixture(t, 'control-task');
+  const userRules = join(fixture.env.HOME, '.minimax/rules');
+  fs.mkdirSync(userRules, { recursive: true });
+  const retiredContent = 'SYNTHETIC_KNOWN_RETIRED_RULE\n';
+  const keptContent = 'SYNTHETIC_LOCALLY_CHANGED_RULE\n';
+  fs.writeFileSync(join(userRules, '10-goal-and-outcome.json'), retiredContent);
+  fs.writeFileSync(join(userRules, '11-prediction-and-veto.json'), keptContent);
+  fs.writeFileSync(join(fixture.root, 'symlink-target'), retiredContent);
+  fs.symlinkSync(join(fixture.root, 'symlink-target'), join(userRules, '12-evidence-and-verification.json'));
+  // Substitute only the known digest to exercise the retirement branch without
+  // publishing the rejected private-session rule body as a permanent fixture.
+  const originalBlock = documentedShellBlock('install-upgrade');
+  const block = originalBlock.replace(/('10-goal-and-outcome\.json': \[')[a-f0-9]{64}/,
+    `$1${digest(retiredContent)}`);
+  assert.notEqual(block, originalBlock);
+  const executed = spawnSync('/bin/sh', ['-c', block], {
+    cwd: repositoryRoot, env: fixture.env, encoding: 'utf8', timeout: 12000,
+  });
+  assert.equal(executed.status, 0, executed.stderr);
+  assert.equal(fs.existsSync(join(userRules, '10-goal-and-outcome.json')), false);
+  assert.equal(fs.readFileSync(join(userRules, '11-prediction-and-veto.json'), 'utf8'), keptContent);
+  assert.ok(fs.lstatSync(join(userRules, '12-evidence-and-verification.json')).isSymbolicLink());
+  assert.equal(fs.readFileSync(join(fixture.root, 'symlink-target'), 'utf8'), retiredContent);
+  const backups = fs.readdirSync(join(fixture.dataDir, 'extension-backups'));
+  assert.equal(backups.length, 1);
+  assert.equal(fs.readFileSync(join(fixture.dataDir, 'extension-backups', backups[0], 'user-rules/10-goal-and-outcome.json'), 'utf8'), retiredContent);
+  assert.match(executed.stdout, /Retired backed-up legacy rule: 10-goal-and-outcome/);
 });
 
 test('documented fresh MCP initialization exclusively creates a reviewed template and refuses overwrite', t => {

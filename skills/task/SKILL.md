@@ -8,88 +8,112 @@ metadata:
 # Task cycle
 
 For an empty request show usage. Otherwise preserve the complete requested outcome and all
-compatible corrections. Choose the smallest sufficient depth: `trivial` for bounded mechanical work,
-`standard` for interacting behavior, `complex` for dependent outcomes or consequential recovery.
-Respect an explicit depth; `light` means `trivial`.
+compatible corrections. Read [modes.md](references/modes.md) and
+[escalation.md](references/escalation.md); choose the smallest sufficient depth. Respect an
+explicit depth; `light` means `trivial`. Full mode includes plan review, implementation review
+and independent product acceptance at every depth. MAIN may implement trivial work directly.
 
-This cycle has no machine gates. There is no preplan chain, no quorum, no crystal reviewer and no
-plan verifier. The gates that remain are the roles themselves, and they are the ones that repair:
-the critic fixes the plan, the implementation-critic fixes the code. The product-validator is the
-one exception — it never repairs, it only judges.
+MAIN routes this cycle through the real MiniMax `task` tool. There is no separate driver,
+preplan chain, quorum, crystal-reviewer, plan-verifier or undeclared artifact-checking tool.
+Critics repair their owned artifacts; the product-validator only judges the product.
+
+## Dispatch and isolation
+
+Read the current task schema. Use the exact installed `agent_name`, `description`, `prompt`,
+and **run_in_background: true**. Use the supported `agent:<name>` qualifier when needed to
+select the custom role rather than a colliding builtin. Do not override model/effort without
+applicable authorization. Read completed results through the actual task-output interface;
+a pending role is not a passed gate.
+
+The prompt contains only the exact lines below. Descriptions are neutral role/task labels.
+Pass no implementation defence, predicted verdict, worker report or previous review. Sources
+and necessary locators live in the artifacts; each critic derives its criteria independently.
+
+| Role | Exact prompt |
+| --- | --- |
+| planner, critic | `CRYSTAL: <absolute path>` then `PLAN: <absolute path>` |
+| worker, implementation-critic | The same two lines; append `UNIT: U<n>` only for one UNITS leaf |
+| product-validator | `CRYSTAL: <absolute path>` only |
+
+These are fresh, isolated leaf calls: no inherited task dialog or nested role dispatch. Use
+real installed roles, not a general-purpose agent described as one. If a required role or
+capability is absent, state that gate's exact limitation and continue independent authorized
+work; an ad-hoc check is not a native role pass. Existing source-backed authorization persists.
 
 ## 1. Frame
 
 Read [crystal.md](references/crystal.md) and write the source crystal. Keep §1 (user intent,
 verbatim) and §3 (project context) immutable during the cycle; only §2 (agent hypotheses) is
-derived advice and may be repaired.
+derived advice and may be repaired by the critic. Never insert review history or private
+acceptance criteria into source artifacts.
 
-The durable canonical task for the session lives in `mcp__control-task__control_task_set` — call
-it when the task definition materially changes. It is not the crystal: the crystal is the
-per-cycle source of intent, the control-task is the session-scoped anchor that survives compaction
-and restarts.
-
-Set the mode: `full`, `plan-only` or `review-only`. Review-only grants no product edits.
+The durable canonical task uses `mcp__control-task__control_task_set` or
+`mcp__control-task__control_task_patch`; update it when the task definition materially changes. It is distinct from the per-cycle crystal. Unchanged
+input needs no fabricated update; storage bookkeeping is not an extra workflow gate.
+Set `task-mode` to full, plan-only or review-only.
 
 ## 2. Plan
 
-Dispatch `planner` with the crystal path. The planner returns a plan artifact — what and how, never
-the implementation itself (see [plan-quality.md](references/plan-quality.md)). Save the plan under
-`~/plans/<crystal-stem>.md`.
+Allocate the absolute PLAN path under `~/plans/<crystal-stem>.md` before dispatch. Read
+[plan-quality.md](references/plan-quality.md), then launch planner with both paths. It writes
+what and how in that file and returns JSON status, not implementation or the plan body.
+The planner owns the initial draft; the critic owns later plan and §2 repairs.
 
 ## 3. Plan gate — the critic repairs
 
-Dispatch `critic` with the crystal and the plan. The critic reviews intent fidelity, plan
-approach, coverage and executability, and it **repairs** what it finds: the plan artifact is
-rewritten in place by the critic, and the verdict says so. A rejected plan returns to the planner
-with the critic's feedback; the planner revises and the critic judges the revision again.
+Launch critic with CRYSTAL and PLAN. It first derives the task from original sources, then
+checks coverage and executability and repairs proven defects in PLAN or CRYSTAL §2. It cannot
+change §1/§3, widen user scope, edit product files or renegotiate requirements.
 
-The critic is a reviewer, not an author: it may not widen the scope, change §1, or decide that a
-requirement is out of scope. It repairs the plan against the crystal, it does not renegotiate it.
+Read the JSON result using [verdict-grammar.md](references/verdict-grammar.md). A material
+repair is followed by a fresh critic on the current artifacts with the same exact payload.
+Proceed only after a completed positive review of the current plan with no new material repair.
+An unresolved source decision or environment gap is reported precisely, never treated as pass.
+Plan-only ends here. Review-only follows its branch in modes.md.
 
 ## 4. Implement
 
-Dispatch `worker` with the accepted plan and the owned scope. The worker implements and runs the
-checks it can. A task that is `trivial` may be implemented by MAIN directly — no dispatch needed.
+Launch worker with CRYSTAL, the accepted PLAN and optional UNIT selector. It implements its
+owned files and checks the real behavior. MAIN may do bounded trivial implementation directly;
+that exception changes the author, not the later gates. Keep independent unit writes disjoint
+and observe declared dependency/integration boundaries.
+
+Repair change-caused regressions and defects on the requested outcome's mandatory correctness
+path within granted ownership. A required cross-owner or plan change returns to the appropriate
+owner with source evidence available in the project; a finding does not create new authority.
+Unrelated work does not expand the task. The worker never dispatches its own critic.
 
 ## 5. Implementation gate — the implementation-critic repairs
 
-Dispatch `implementation-critic` with the plan and the changed files. The implementation-critic
-**repairs** the declared product files itself, in the same pass, and records what it repaired. A
-defect in the plan, intent or scope is not its to fix: that returns to the critic in step 3.
+Launch implementation-critic with CRYSTAL and PLAN, not a handed-down changed-file list;
+append UNIT only for an assigned leaf. It discovers the actual subject and dependencies and
+repairs proven defects in its explicit product scope. Intent, plan or ownership defects return
+to the critic; the implementation-critic cannot edit CRYSTAL or PLAN.
 
-Any bug that can be reproduced (a command, a test, a scenario that shows the wrong behavior) is
-fixed in the same diff, regardless of module or distance from the task — see the reproducible-bug
-rule in [plan-quality.md](references/plan-quality.md).
+After a material repair, MAIN launches a fresh implementation-critic with the same source
+payload. Its `repairs` report is routing information for MAIN, not input to the next reviewer.
+A completed positive review of the current result advances to acceptance. Mandatory standalone
+verification outside this skill uses the role's `TASK: <absolute path>` contract; it does not
+create a second task-cycle review or fictional crystal/plan.
 
 ## 6. Acceptance — the product-validator does not repair
 
-Dispatch `product-validator` with the crystal only. It derives its own criteria from §1 of the
-crystal, closes the list **before** it opens the result, and verifies the user outcome
-independently. It hunts false completion: a result answered by a claim instead of by a run.
+Read [acceptance.md](references/acceptance.md). Launch product-validator with CRYSTAL only.
+It fixes its source-derived criteria before observing the result, verifies the user's outcome,
+and returns JSON criteria with evidence. It never edits the product or other task artifacts.
 
-The product-validator never edits anything. A FAIL returns to the implementation loop with the
-violated criteria and the required fixes; then a new implementation review, then a fresh
-acceptance round. A BLOCKED round is a decision for MAIN: another round, or an explicit
-"accept-blocked" line in the final response. It is never counted as a pass.
-
-Full contract: [acceptance.md](references/acceptance.md). Verdict format:
-[verdict-grammar.md](references/verdict-grammar.md).
+FAIL returns to the appropriate repair owner, then fresh implementation review and acceptance.
+A repeated failed requirement points to its plan/mechanism cause, not a reason to lower the bar.
+BLOCKED names the missing prerequisite; MAIN obtains available evidence or reports the exact
+unverified outcome while completing independent authorized work. It is never a pass.
 
 ## 7. Report
 
-Read [reporting.md](references/reporting.md) and report faithfully: what changed, what was checked
-by running it, what stayed unverified and why. A running role is not completion; report unresolved
-prerequisites honestly.
+Read [reporting.md](references/reporting.md). Report actual changes, runs, observations and
+unverified properties. Role launch, source inspection, hook delivery and native model behavior
+are distinct evidence. End once the full outcome and required gates are satisfied; repeat work
+only for a relevant change, contradiction, unresolved requirement or explicit gate.
 
-## Routing and depth
-
-Read [modes.md](references/modes.md) for which loops run at all, and [escalation.md](references/escalation.md)
-for when a task grows. Escalation changes the reviewer set, never the repair semantics: a critic
-repairs a plan, an implementation-critic repairs code, a product-validator judges and never repairs.
-
-## What this cycle does not do
-
-- No preplan, no substrate/sketch/mechanism chain, no reviewer quorum.
-- No crystal reviewer and no plan verifier.
-- No private oracle and no manual MAIN orchestration of the role sequence.
-- No `task_pipeline`-style driver: the role dispatch is the `task` tool and the artifacts are files.
+MAIN owns retries and source-grounded routing. Continue while a discriminating action makes
+progress; do not repeat an unchanged failed attempt or conceal an unresolved prerequisite.
+There is no fixed automatic repair-round cap and no hidden scheduler.

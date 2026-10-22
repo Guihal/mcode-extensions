@@ -1,16 +1,22 @@
 {
   "name": "74-use-context-frontier",
-  "_tier": "T1",
-  "_comment": "Reinforces task-relevant dependency discovery without a mandatory tool or unbounded closure ritual. every_n_turns counts UserPromptSubmit; full body on session/subagent start and after compaction.",
   "apply": [
     "*"
   ],
   "send_on_start": true,
   "send_on_subagent": true,
-  "body": "[74-use-context-frontier]\n\nBefore a consequential plan, edit, verdict or reliance on existing authority, establish the governing requirement, defining source and dependencies that can affect the required property. Use context_frontier or graph tools when available and useful; targeted reads and searches are sufficient for a bounded relation. A missing tool or index is not itself a blocker when another available method establishes the property.\n\nFollow callers, consumers, tests and decision records when they can change the decision or reveal affected behavior. Expand when a discovered dependency exposes a material unresolved question. Do not require as many sources as possible, every repository reference, or a fresh graph pass before each action. Stop discovery when evidence is sufficient for the authorized step and its required coverage; preserve genuinely global or quantified requirements instead of treating the first few hits as the whole scope. Reopen only for a relevant change, contradiction or specific gap.\n\nSearch and graph output are candidates, not semantics: inspect the deciding source. One authoritative source can establish the property it governs; several dependent copies or repeated searches do not make an inference independent evidence. Source inspection does not replace runtime verification: exercise the affected scenario and inspect its observable behavior and relevant logs. State what remains unverified.",
+  "body": "[74-use-context-frontier] Исследуй решающую зависимость\n\nЖелаемое поведение\nСобирай контекст до достаточного основания следующего решения и сохраняй охват исходного требования.\n\nИсполнимый контракт\n1. Перед существенным планом, правкой, verdict или опорой на прежнее решение установи governing requirement и зависимости, которые могут изменить проверяемое свойство.\n2. Прочитай решающие callers, consumers, контракты, tests и decision records. Search/graph hit — кандидат: значение устанавливает исходник. Search miss означает отсутствие только в обследованной области.\n3. Расширяй поиск при конкретной новой зависимости или противоречии. Установленная ограниченная связь допускает targeted reads без полного graph pass. Сохраняй глобальные и количественные требования при оценке полноты.\n4. При handoff/compaction сохрани цель, ограничения, решения, активные skill/role obligations, открытые вопросы, опровержения и evidence locators; раздели наблюдения и гипотезы. Обновляй только затронутые устаревшие свидетельства.\n\nИнструменты и skills\ncontext_frontier, project-graph, codebase-memory-mcp желательны для сложных связей; read/grep достаточны для ограниченных. Если индекса нет, используй подходящую прямую проверку; graph не заменяет runtime73.\n\nСвязи: 71-user-intent-outcome, 72-project-sources-details, 73-tests-not-proof, 76-execution-progress-close-questions.\n\nАнтипаттерны\nВсе ссылки проекта ради уверенности; несколько копий как независимое подтверждение; первый список как весь scope; резюме, превращающее предположение в факт или обновляющее старое свидетельство.",
   "remind": {
-    "every_n_turns": 4,
-    "suffix": "[USE CONTEXT FRONTIER — task-relevant]\nResolve the material requirement, defining source and affected dependencies with context_frontier/graph tools when useful, or targeted reads/searches. Expand for a decision-relevant gap, not repository-wide closure or source count. Inspect deciding hits; reuse applicable evidence. Preserve required coverage, including quantified scope. Once the current action and its validation are supported, act. Runtime claims still need observed behavior and relevant logs; report unverified properties."
+    "every_n_tools": 17,
+    "suffix": "[74-use-context-frontier] Собирай контекст до достаточного основания следующего решения и сохраняй охват исходного требования. Контракт: 1. Перед существенным планом, правкой, verdict или опорой на прежнее решение установи governing requirement и зависимости, которые могут изменить проверяемое свойство. Связи: 71-user-intent-outcome, 72-project-sources-details, 73-tests-not-proof, 76-execution-progress-close-questions."
   },
-  "_derives": "2026-10-16 source-grounding directive reconciled with the existing AGENTS.md and critic role evidence-reuse contract. This fixes an instruction conflict; archive loops are not attributed causally to this rule."
+  "_contract": {
+    "steps": [
+      "S2",
+      "S3",
+      "S6"
+    ],
+    "source": "docs/standing-rules/03-contracts.md"
+  },
+  "_comment": "Полное тело на startup/resume/compact и SubagentStart. Периодические напоминания считают завершённые PostToolUse, включая ошибки исполнения; inputs считаются отдельно."
 }

@@ -1,23 +1,29 @@
-# Modes — which loops run at all
+# Modes — authorized work and required loops
 
-Read once at entry, before the crystal.
+Read at entry. Preserve the user's actual mode and later explicit authorization to continue.
+A request to explain or propose does not authorize product edits; already granted execution
+permission does not need to be requested again.
 
-## Plan-only mode
+## Plan-only
 
-"plan only" / "just plan" / "only plan" / "plan first" / "no code" / "don't write code":
-run the plan loop with the critic gate, skip implementation. The final answer has `### Plan` only
-and says `impl: skipped`.
+For an explicit plan-only/no-code request: frame → planner → critic, including material plan
+repairs and a fresh check. End with the plan and `impl: skipped`. Product files are read-only.
 
-## Reviewer mode
+## Review-only
 
-"task as reviewer" / "task for review", or a request to review an existing artifact: no code
-unless explicitly asked afterwards; produce review feedback. Gate it like any other artifact when
-the review itself is substantial.
+When the requested deliverable is a review: frame → planner → critic for a bounded inspection
+plan → implementation-critic with CRYSTAL task-mode review-only. No worker/product repairs and
+no product-validator acceptance gate run. Read-only source/probes may establish findings.
 
-## Full mode
+A positive review-only verdict means the requested inspection is complete, not that the
+subject is correct. Report any sourced subject defects. A missing necessary observation is
+blocked. This branch does not apply to the mandatory standalone TASK verification of changes:
+that gate judges the product even when the critic has no write permission.
 
-Default: crystal → plan → critic gate → implementation → implementation-critic gate → acceptance →
-final answer with plan and implementation summary.
+## Full
 
-Plan-only and reviewer modes never reach the implementation loop or the acceptance gate: there is
-no code to write and no result to accept.
+Frame → planner → critic → implementation → implementation-critic → product-validator → report.
+MAIN may implement trivial work directly; all full-mode review and acceptance gates remain.
+Critic repairs only PLAN and CRYSTAL §2; implementation-critic repairs only explicit product
+write scope; product-validator is read-only. A material repair receives a fresh review.
+Every delegated role runs in the background with its exact source-only launch payload.

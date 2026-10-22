@@ -1,51 +1,42 @@
-# Escalation — depth ladder, triggers, no-cap rule
+# Depth, routing and progress
 
-Read when picking depth and whenever a `trivial` task starts to grow.
+Read when selecting depth or when the task changes materially. Respect an explicit depth;
+`light` means trivial. Increase depth when the actual work requires it; do not downgrade to
+avoid an applicable gate.
 
 ## Depth
 
-- `trivial` — bounded mechanical work: one file, one obvious change, no design choice. MAIN may
-  implement it directly.
-- `standard` — interacting behaviour: several files, a design choice, a reviewable result.
-- `complex` — dependent outcomes or consequential recovery: several units depend on each other, or
-  a failure has to be recovered without losing prior work.
+- `trivial`: bounded mechanical change with no material design decision. MAIN may implement
+  it directly. Use SINGLE.
+- `standard`: interacting behavior, an implementation choice or a shared boundary requiring
+  a coherent plan. Use SINGLE.
+- `complex`: genuinely dependent deliverables or consequential recovery. Use SINGLE for an
+  indivisible result or UNITS for independently deliverable outcomes and their integration.
 
-Depth is a floor, not a ceiling: a task that starts `trivial` and grows escalates. Downgrading
-mid-task is not a thing.
+Depth follows real uncertainty and consequences, not keyword matches, file count or mood.
+A public API, extension hook, trust/authorization boundary or material cross-layer data flow
+requires at least standard treatment. Use complex when dependencies or recovery require it.
+An existing requirement or explicit task depth is not waived because work looks easy.
 
-## Auto-escalate (no judgement needed)
+## Gates and ownership
 
-Escalate if ANY of:
+All full-mode depths receive plan review, implementation review and product acceptance.
+Escalation changes planning/execution granularity; it does not change repair permissions or
+remove a gate. Plan-only and review-only use their distinct branches in modes.md.
 
-- the task description contains keywords from the trigger list (architecture, refactor, pipeline,
-  data-flow, security, more than one layer);
-- changes a module boundary, ADR, public API or extension hook;
-- introduces a new data flow between layers (transport / service / domain / repo / port);
-- touches auth, secrets, XSS, CSRF, SQLi, weak crypto, or any security-sensitive surface;
-- is a refactor (rewriting without changing observable behaviour).
+MAIN routes actual background role calls. No separate Native driver or scheduler is assumed.
+Planner writes the initial PLAN; critic repairs PLAN/CRYSTAL §2; worker or MAIN implements;
+implementation-critic repairs its explicit product scope; product-validator never repairs.
+Source §1/§3 and user authority remain unchanged by escalation.
 
-## Risk escalates, volume does not
+## Repeated failures
 
-A task escalates because it hits a trigger above, never because it feels uncertain or spans several
-files. The cost runs both ways: a wrong plan passing an unrepaired critic is a defect, and the
-full reviewer set spent on a small local edit is a defect of the same cycle. A `trivial` task still
-goes through the acceptance gate (`implementation-critic` → `product-validator`) and through the
-no-cap rule below.
+There is no automatic repair-round cap. Continue while a new observation, meaningful repair
+or discriminating probe makes progress. Do not rerun an unchanged failed action for reassurance.
+A repeated failure of the same requirement sends work back to its plan/mechanism cause or
+missing environment prerequisite. Never reduce the required outcome to obtain a positive verdict.
 
-### What does NOT escalate
-
-- depth `trivial` AND none of the risk triggers above is hit — however many files the change
-  spans, and however unsure it feels.
-
-## Mechanics
-
-Escalation changes the reviewer set, never the repair semantics: the critic still repairs the
-plan, the implementation-critic still repairs the code, the product-validator still never repairs.
-The crystal, the plan and the verdict files stay where they are.
-
-## No-cap rule
-
-There is no automatic cap on rounds. A cycle continues while it makes progress; it stops when the
-acceptance passes, when the user says stop, or when an unresolved prerequisite is reported. A
-repeated FAIL on the same criterion twice in a row is a signal to change route (back to the plan),
-not a reason to stop.
+Malformed/crashed role calls have one fresh retry with the same artifact payload, as defined
+in verdict-grammar.md. That transport/format recovery rule is separate from product repairs.
+Stop when the full outcome and required gates pass, the user stops the work, or a concrete
+unresolved prerequisite is reported honestly. A blocked gate is not success.

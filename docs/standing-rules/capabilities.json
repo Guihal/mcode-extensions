@@ -1,0 +1,3331 @@
+{
+  "schema_version": 1,
+  "title": "Условные привязки наблюдаемого каталога к исполнимым контрактам",
+  "derived_from": [
+    "01-inventory.md",
+    "02-desired-behavior.md",
+    "03-contracts.md"
+  ],
+  "source": {
+    "observed_date": "2026-10-22",
+    "repository_baseline_commit": "024a3369c3f686268076228256ea83917ad691db",
+    "catalog": "Runtime declarations, session export generation 1",
+    "skill_count": 73,
+    "tool_count": 116,
+    "runtime_status": "advertised_only",
+    "skill_instructions_status": "catalog_descriptions_only_some_truncated",
+    "note": "Снимок не доказывает текущую установку, доступность, dispatch или успешное применение. Приватный транскрипт не включён."
+  },
+  "policy": {
+    "required": "Обязательно только при выполнении условия, доступности применимого механизма и действующих полномочиях. Если названная возможность является объектом обязательной проверки, эквивалент не доказывает её работу.",
+    "recommended": "Желательный способ при данном условии; достаточная разрешённая альтернатива допустима. Это не новый обязательный этап.",
+    "skills": "Любой явно названный пользователем skill читается независимо от recommended в таблице. Clear current trigger тоже требует загрузки. Уровень recommended описывает выбор workflow, а не разрешение пропустить его инструкции после выбора.",
+    "precedence": "Сначала действующая instruction hierarchy и оригинальные требования, затем применимые прочитанные instructions/schemas. Архивное описание не заменяет текущий contract и не даёт дополнительных permissions.",
+    "tool_selection": "Обязательность привязана к требуемой операции/доказательству. Если конкретный tool не назначен обязательным источником, выбрать один достаточный доступный способ; не вызывать все tools одной группы.",
+    "discovery": "Перед использованием проверить текущий каталог, exact names, schema/required fields и прочитать выбранный SKILL.md. После relevant change обновить только affected evidence.",
+    "unavailable": "Недоступность optional route не останавливает задачу. Для обязательного named mechanism назвать точное непроверенное свойство; не имитировать вызов или role pass.",
+    "review": "Все child launches в фоне. Delivery owner организует independent implementation review; leaf reviewer не запускает рекурсивный review. Любому критику — нейтральная исходная задача и locators, без защиты решения.",
+    "snapshot_conflicts": "Не переносить чужие Claude/Agent API, model presets и трёхточечные layout defaults. Native task dispatch определяется текущей schema; пять widths и смысловая проверка задаются действующим контрактом77.",
+    "state": "Control-task хранит полную долговечную постановку, agent-state — reusable knowledge, host goal — свой lifecycle. Они не дублируют друг друга; storage bookkeeping не создаёт gate."
+  },
+  "bindings": [
+    {
+      "kind": "skill",
+      "name": "mcode-tools-master",
+      "contract_steps": [
+        "S2",
+        "S4"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "73-tests-not-proof"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Предстоит любой mcode-tools command, мультимодальная операция или discovery подключённого App по объявленному trigger.",
+      "action": "Загрузить полную инструкцию до CLI; обнаружить конкретную возможность и прочитать её schema; обычный уже объявленный MCP не требует обхода через App discovery."
+    },
+    {
+      "kind": "skill",
+      "name": "animation-standards",
+      "contract_steps": [
+        "S3",
+        "S4"
+      ],
+      "rule_ids": [
+        "77-layout-model-and-verification",
+        "81-engineering-invariants"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Изменяются анимации, переходы или reduced-motion поведение UI.",
+      "action": "Прочитать применимые стандарты, выбрать project tokens, проверить движение и состояние reduced-motion в реальном render."
+    },
+    {
+      "kind": "skill",
+      "name": "architect",
+      "contract_steps": [
+        "S2",
+        "S5"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "80-independent-review",
+        "81-engineering-invariants"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Нужна отдельная сверка архитектуры с авторитетными specs и выбран этот workflow.",
+      "action": "Прочитать текущий skill; проверять against specs в пределах role rights. Упоминание модели в старом description не выбирает модель и не подменяет implementation review."
+    },
+    {
+      "kind": "skill",
+      "name": "asset-pipeline",
+      "contract_steps": [
+        "S2",
+        "S3",
+        "S4"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "73-tests-not-proof",
+        "77-layout-model-and-verification"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Выпускаются ассеты из дизайна в продукт.",
+      "action": "Сопоставить формат, размеры, density, loading и aspect-ratio с реальным контентом; проверить отображение и загрузку."
+    },
+    {
+      "kind": "skill",
+      "name": "bmad",
+      "contract_steps": [
+        "S1",
+        "S2"
+      ],
+      "rule_ids": [
+        "01-operating-principle",
+        "72-project-sources-details"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Пользователь просит BMad help, выбор следующего шага или обслуживание BMad.",
+      "action": "Прочитать skill, установить фактическое состояние установки и выбрать только нужный этап, не навязывая framework другим задачам."
+    },
+    {
+      "kind": "skill",
+      "name": "browser-use:control-in-app-browser",
+      "contract_steps": [
+        "S2",
+        "S4"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "73-tests-not-proof",
+        "77-layout-model-and-verification"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Выбран встроенный Browser текущего чата для разрешённого просмотра или взаимодействия.",
+      "action": "Прочитать skill, установить конкретную страницу и состояние, выполнять наблюдаемые действия и проверять их эффект."
+    },
+    {
+      "kind": "skill",
+      "name": "caveman",
+      "contract_steps": [
+        "S6"
+      ],
+      "rule_ids": [
+        "68-reason-in-user-language",
+        "76-execution-progress-close-questions"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Пользователь или действующий workflow выбрал сжатый стиль общения.",
+      "action": "Прочитать режим и сокращать форму без потери требований, доказательств, языка пользователя и точных оговорок."
+    },
+    {
+      "kind": "skill",
+      "name": "chrome-devtools",
+      "contract_steps": [
+        "S2",
+        "S3",
+        "S4"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "73-tests-not-proof",
+        "77-layout-model-and-verification",
+        "81-engineering-invariants"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Отладка или автоматизация браузера выполняется через Chrome DevTools MCP.",
+      "action": "Прочитать skill; выбрать решающий DOM/network/performance probe, наблюдать сценарий и логи."
+    },
+    {
+      "kind": "skill",
+      "name": "code-review",
+      "contract_steps": [
+        "S2",
+        "S5"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "75-evidence-or-blocker",
+        "80-independent-review"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Запрошено code review конкретных изменений, файлов, commits или PR.",
+      "action": "Прочитать skill, установить заявленный scope/base и вывести критерии из задачи; предъявлять воспроизводимые дефекты без защиты реализации."
+    },
+    {
+      "kind": "skill",
+      "name": "commit-context",
+      "contract_steps": [
+        "S2"
+      ],
+      "rule_ids": [
+        "70-reasoning-poison",
+        "74-use-context-frontier",
+        "75-evidence-or-blocker"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Требуется выяснить, почему появился конкретный участок кода или с каким изменением он связан.",
+      "action": "Проследить строку/файл через blame и прочитать соответствующий commit; текущее состояние само по себе не доказывает намерение автора."
+    },
+    {
+      "kind": "skill",
+      "name": "commit-history",
+      "contract_steps": [
+        "S2"
+      ],
+      "rule_ids": [
+        "70-reasoning-poison",
+        "74-use-context-frontier",
+        "75-evidence-or-blocker"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Пользователь спрашивает историю или изменения за период/по пути/автору.",
+      "action": "Получить ограниченную историю и подходящий diff; отделить observed commit metadata от объяснения причин."
+    },
+    {
+      "kind": "skill",
+      "name": "constitution-patch",
+      "contract_steps": [
+        "S2",
+        "S4"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "79-behavior-comments-and-contract",
+        "81-engineering-invariants"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Явный reflection signal установил пробел конкретной system constitution и разрешена её правка.",
+      "action": "Прочитать актуальный skill и целевой источник; менять лишь доказанный пробел, не переносить исторический путь другого harness в mcode."
+    },
+    {
+      "kind": "skill",
+      "name": "css-architecture",
+      "contract_steps": [
+        "S2",
+        "S3",
+        "S4"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "77-layout-model-and-verification",
+        "81-engineering-invariants"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Проектируются или меняются слои стилей, tokens, specificity или границы component/utility.",
+      "action": "Прочитать нужные sections; связать стиль с владельцем и наблюдаемым reflow, переиспользовать project abstractions."
+    },
+    {
+      "kind": "skill",
+      "name": "debug-hypotheses",
+      "contract_steps": [
+        "S3",
+        "S4"
+      ],
+      "rule_ids": [
+        "70-reasoning-poison",
+        "73-tests-not-proof",
+        "75-evidence-or-blocker",
+        "81-engineering-invariants"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Есть bug, failing test или unexpected behavior перед предложением/применением исправления.",
+      "action": "Прочитать skill, выбрать различающую гипотезу и маленькую пробу; менять решение по результату, затем проверить поведение."
+    },
+    {
+      "kind": "skill",
+      "name": "deep-research",
+      "contract_steps": [
+        "S1",
+        "S2",
+        "S3",
+        "S6"
+      ],
+      "rule_ids": [
+        "01-operating-principle",
+        "70-reasoning-poison",
+        "72-project-sources-details",
+        "75-evidence-or-blocker"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Выбрана сложная открытая исследовательская задача с внешней проверкой фактов.",
+      "action": "Загрузить skill и читать каждый из пяти step prompts непосредственно перед соответствующим этапом; сохранить порядок и атрибуцию источников."
+    },
+    {
+      "kind": "skill",
+      "name": "deploy-website",
+      "contract_steps": [
+        "S2",
+        "S4",
+        "S6"
+      ],
+      "rule_ids": [
+        "71-user-intent-outcome",
+        "72-project-sources-details",
+        "73-tests-not-proof",
+        "75-evidence-or-blocker"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Пользователь поручил первый публичный выпуск существующего локального сайта или HTML.",
+      "action": "Загрузить skill; подготовить и проверить build, затем выполнить актуальные требования deployment tool к публикации и проверить выданный URL."
+    },
+    {
+      "kind": "skill",
+      "name": "design",
+      "contract_steps": [
+        "S1",
+        "S2",
+        "S3",
+        "S4"
+      ],
+      "rule_ids": [
+        "71-user-intent-outcome",
+        "72-project-sources-details",
+        "77-layout-model-and-verification",
+        "81-engineering-invariants"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Нужно спроектировать или расширить UI в Figma по brief и существующим design sources.",
+      "action": "Прочитать skill; установить цель, tokens, компоненты и layout model; проверить получившийся дизайн."
+    },
+    {
+      "kind": "skill",
+      "name": "design-block-map",
+      "contract_steps": [
+        "S2",
+        "S3"
+      ],
+      "rule_ids": [
+        "01-operating-principle",
+        "72-project-sources-details",
+        "77-layout-model-and-verification"
+      ],
+      "necessity": "required",
+      "basis": "selected-workflow",
+      "condition": "Выбран design pipeline и наступила фаза1: screenshots → карта блоков.",
+      "action": "Загрузить фазовый skill; сохранить иерархию, порядок и поведение без преждевременной подстановки styles и чисел."
+    },
+    {
+      "kind": "skill",
+      "name": "design-conformance",
+      "contract_steps": [
+        "S4",
+        "S5"
+      ],
+      "rule_ids": [
+        "73-tests-not-proof",
+        "75-evidence-or-blocker",
+        "77-layout-model-and-verification"
+      ],
+      "necessity": "required",
+      "basis": "selected-workflow",
+      "condition": "Нужно сверить живую страницу с авторитетным UI ТЗ по slugs.",
+      "action": "Прочитать skill, проверить наличие и действительные computed/render свойства; допуски брать из источника, не придумывать."
+    },
+    {
+      "kind": "skill",
+      "name": "design-diff",
+      "contract_steps": [
+        "S2",
+        "S3"
+      ],
+      "rule_ids": [
+        "17-user-correction-rebase",
+        "72-project-sources-details",
+        "77-layout-model-and-verification"
+      ],
+      "necessity": "required",
+      "basis": "selected-workflow",
+      "condition": "Есть новая версия дизайна и прежние block/style maps, выбран incremental diff.",
+      "action": "Прочитать skill, сопоставить реальные изменения и сохранить неизменённые требования; вывести patch only affected artifacts."
+    },
+    {
+      "kind": "skill",
+      "name": "design-pipeline",
+      "contract_steps": [
+        "S1",
+        "S2",
+        "S3",
+        "S4"
+      ],
+      "rule_ids": [
+        "01-operating-principle",
+        "71-user-intent-outcome",
+        "72-project-sources-details",
+        "77-layout-model-and-verification"
+      ],
+      "necessity": "required",
+      "basis": "selected-workflow",
+      "condition": "Поручен полный переход design export → ТЗ → пакеты → исполнение через этот pipeline.",
+      "action": "Прочитать orchestrator и необходимые фазовые инструкции по порядку; готовый код не заменяет пропущенный обязательный этап."
+    },
+    {
+      "kind": "skill",
+      "name": "design-project-bind",
+      "contract_steps": [
+        "S2",
+        "S3"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "77-layout-model-and-verification",
+        "81-engineering-invariants"
+      ],
+      "necessity": "required",
+      "basis": "selected-workflow",
+      "condition": "В выбранном design pipeline наступила привязка draft ТЗ к текущему репозиторию.",
+      "action": "Загрузить skill; связать raw design values с проектными tokens/components и каждый content atom с источником."
+    },
+    {
+      "kind": "skill",
+      "name": "design-style-map",
+      "contract_steps": [
+        "S2",
+        "S3"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "77-layout-model-and-verification"
+      ],
+      "necessity": "required",
+      "basis": "selected-workflow",
+      "condition": "После block map извлекаются styles из design export.",
+      "action": "Прочитать skill; записать наблюдаемые raw values по slugs, оставив project token matching следующей фазе."
+    },
+    {
+      "kind": "skill",
+      "name": "design-tz-draft",
+      "contract_steps": [
+        "S2",
+        "S3"
+      ],
+      "rule_ids": [
+        "01-operating-principle",
+        "72-project-sources-details",
+        "77-layout-model-and-verification"
+      ],
+      "necessity": "required",
+      "basis": "selected-workflow",
+      "condition": "Есть block map и style map и нужен UI draft ТЗ.",
+      "action": "Прочитать skill; объединить источники и проверить UI standards, сохраняя нерешённую project binding явно."
+    },
+    {
+      "kind": "skill",
+      "name": "design-tz-split",
+      "contract_steps": [
+        "S1",
+        "S3"
+      ],
+      "rule_ids": [
+        "01-operating-principle",
+        "71-user-intent-outcome",
+        "81-engineering-invariants"
+      ],
+      "necessity": "required",
+      "basis": "selected-workflow",
+      "condition": "Финальное UI ТЗ требуется разделить на зависимые implementable tasks.",
+      "action": "Загрузить skill; выделить полные проверяемые outcomes, dependencies, ownership и acceptance, сохраняя весь scope."
+    },
+    {
+      "kind": "skill",
+      "name": "dispatch-task-subagent",
+      "contract_steps": [
+        "S2",
+        "S5"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "80-independent-review"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Выбран этот вспомогательный workflow для делегирования PR-sized задачи.",
+      "action": "Прочитать текущую инструкцию, проверить совместимость с native mcode task schema; запускать точную роль в фоне, не копировать Claude Agent syntax или модель из старого описания."
+    },
+    {
+      "kind": "skill",
+      "name": "docs-driven-implementation",
+      "contract_steps": [
+        "S2",
+        "S3",
+        "S4"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "73-tests-not-proof",
+        "79-behavior-comments-and-contract",
+        "81-engineering-invariants"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Код реализуется по уже существующей авторитетной проектной спецификации.",
+      "action": "Прочитать skill и решающие требования; сохранить цепочку requirement → implementation → meaningful behavior check."
+    },
+    {
+      "kind": "skill",
+      "name": "docx",
+      "contract_steps": [
+        "S2",
+        "S4",
+        "S6"
+      ],
+      "rule_ids": [
+        "71-user-intent-outcome",
+        "72-project-sources-details",
+        "73-tests-not-proof"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Основной вход или результат — Word/DOCX либо диагностика такого документа.",
+      "action": "Прочитать skill, сохранить содержательные и форматные требования, проверить итоговый документ подходящим render/read способом."
+    },
+    {
+      "kind": "skill",
+      "name": "edit-deployed-website",
+      "contract_steps": [
+        "S2",
+        "S4",
+        "S6"
+      ],
+      "rule_ids": [
+        "17-user-correction-rebase",
+        "71-user-intent-outcome",
+        "72-project-sources-details",
+        "73-tests-not-proof"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Пользователь поручил изменение уже опубликованного сайта.",
+      "action": "Загрузить skill; установить достоверные node_id/source_path и ожидаемое обновление, проверить изменение и публикацию по текущим ограничениям tool."
+    },
+    {
+      "kind": "skill",
+      "name": "executor-commit-nudge",
+      "contract_steps": [
+        "S4",
+        "S6"
+      ],
+      "rule_ids": [
+        "71-user-intent-outcome",
+        "76-execution-progress-close-questions"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Выбран executor workflow и повторные refinement перестали менять решение.",
+      "action": "Прочитать skill; остановить лишний цикл после закрытия результата и gates, не использовать nudge как разрешение пропустить требуемую работу."
+    },
+    {
+      "kind": "skill",
+      "name": "figma-design",
+      "contract_steps": [
+        "S2",
+        "S3",
+        "S4"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "77-layout-model-and-verification",
+        "81-engineering-invariants"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "UI проектируется через figma-bridge с существующей компонентной системой.",
+      "action": "Прочитать skill, проверить connected target, tokens и responsive layout; после правки осмотреть результат."
+    },
+    {
+      "kind": "skill",
+      "name": "frontend-design",
+      "contract_steps": [
+        "S2",
+        "S3",
+        "S4"
+      ],
+      "rule_ids": [
+        "71-user-intent-outcome",
+        "72-project-sources-details",
+        "77-layout-model-and-verification",
+        "81-engineering-invariants"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Нужно построить web components, страницы или frontend приложение.",
+      "action": "Загрузить skill; строить по заданной цели и project system, затем выполнить обязательную layout/interaction verification."
+    },
+    {
+      "kind": "skill",
+      "name": "goclaw-memory-dual-track",
+      "contract_steps": [
+        "S2",
+        "S3",
+        "S4"
+      ],
+      "rule_ids": [
+        "70-reasoning-poison",
+        "72-project-sources-details",
+        "75-evidence-or-blocker"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Задача касается двух memory stores goclaw или отсутствующего обновления identity/memory.",
+      "action": "Прочитать skill, установить действительный owner/store и наблюдать read/write outcome; не считать UI marker доказательством сохранения."
+    },
+    {
+      "kind": "skill",
+      "name": "goclaw-publish",
+      "contract_steps": [
+        "S2",
+        "S4",
+        "S6"
+      ],
+      "rule_ids": [
+        "71-user-intent-outcome",
+        "72-project-sources-details",
+        "75-evidence-or-blocker"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Пользователь явно поручил регистрацию уже написанного skill в goclaw.",
+      "action": "Прочитать skill, выполнить разрешённый upload и проверить запись через предусмотренное чтение; не автопубликовать чужие skill changes."
+    },
+    {
+      "kind": "skill",
+      "name": "goclaw-sandbox-architecture",
+      "contract_steps": [
+        "S2",
+        "S3"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "74-use-context-frontier",
+        "81-engineering-invariants"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Нужно понять goclaw workspace boundary или ошибку path outside workspace.",
+      "action": "Прочитать skill и фактическую конфигурацию; различать host/container paths и permissions, не обходить ограничения."
+    },
+    {
+      "kind": "skill",
+      "name": "impeccable",
+      "contract_steps": [
+        "S2",
+        "S3",
+        "S4",
+        "S5"
+      ],
+      "rule_ids": [
+        "71-user-intent-outcome",
+        "72-project-sources-details",
+        "73-tests-not-proof",
+        "77-layout-model-and-verification"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Запрошен дизайн, critique, адаптация или улучшение frontend интерфейса по возможностям этого skill.",
+      "action": "Прочитать нужный workflow, выбрать task-specific changes, проверить usable render и interaction."
+    },
+    {
+      "kind": "skill",
+      "name": "init",
+      "contract_steps": [
+        "S2",
+        "S4"
+      ],
+      "rule_ids": [
+        "01-operating-principle",
+        "72-project-sources-details",
+        "81-engineering-invariants"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Пользователь запросил bootstrap AGENTS или текущий trusted bootstrap trigger требует его.",
+      "action": "Загрузить skill; построить инструкции по реальному проекту, не менять существующие договорённости без источника."
+    },
+    {
+      "kind": "skill",
+      "name": "injection-rules",
+      "contract_steps": [
+        "S2",
+        "S3",
+        "S4"
+      ],
+      "rule_ids": [
+        "01-operating-principle",
+        "70-reasoning-poison",
+        "72-project-sources-details",
+        "73-tests-not-proof"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Исследуется или меняется каталог injection rules.",
+      "action": "Загрузить фактический skill и проверить его применимость к установленному mcode engine; старое упоминание Claude paths не определяет runtime API или cadence."
+    },
+    {
+      "kind": "skill",
+      "name": "lark-tools",
+      "contract_steps": [
+        "S2",
+        "S4"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "73-tests-not-proof",
+        "75-evidence-or-blocker"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Запрос относится к Feishu/Lark, его ссылке или lark-cli.",
+      "action": "Прочитать skill; выбрать endpoint по типу источника и текущей schema, выполнять только разрешённые read/write/person-directed actions."
+    },
+    {
+      "kind": "skill",
+      "name": "layout-audit",
+      "contract_steps": [
+        "S3",
+        "S4",
+        "S5"
+      ],
+      "rule_ids": [
+        "73-tests-not-proof",
+        "75-evidence-or-blocker",
+        "77-layout-model-and-verification"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Запрошен структурно-геометрический аудит live layout через этот skill.",
+      "action": "Загрузить skill и проверять meaningful blocks; выполнить минимум пять ширин rule77 плюс затронутые transitions, а не старый трёхточечный default из description."
+    },
+    {
+      "kind": "skill",
+      "name": "llm-call",
+      "contract_steps": [
+        "S2",
+        "S4"
+      ],
+      "rule_ids": [
+        "70-reasoning-poison",
+        "72-project-sources-details",
+        "73-tests-not-proof"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Пользователь просит raw model call, prompt test или сравнение указанных моделей.",
+      "action": "Прочитать skill, использовать проверенную конфигурацию без раскрытия credentials; результат эксперимента ограничить наблюдавшимися условиями."
+    },
+    {
+      "kind": "skill",
+      "name": "lost-pixel",
+      "contract_steps": [
+        "S4",
+        "S5"
+      ],
+      "rule_ids": [
+        "73-tests-not-proof",
+        "75-evidence-or-blocker",
+        "77-layout-model-and-verification"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Нужен конкретный visual regression/pixel diff gate.",
+      "action": "Прочитать skill, убедиться в актуальности baseline и viewport, разобрать значимый diff; green diff не доказывает interaction или весь responsive range."
+    },
+    {
+      "kind": "skill",
+      "name": "mcp-inspector-workflow",
+      "contract_steps": [
+        "S2",
+        "S4",
+        "S5"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "73-tests-not-proof",
+        "77-layout-model-and-verification"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Выбран web-inspector/browser-inspector workflow для edit-verify или проверки артефакта.",
+      "action": "Прочитать skill; после последней значимой правки получить и осмотреть живые evidence, пользоваться актуальными schemas."
+    },
+    {
+      "kind": "skill",
+      "name": "memory-curation",
+      "contract_steps": [
+        "S2",
+        "S6"
+      ],
+      "rule_ids": [
+        "70-reasoning-poison",
+        "72-project-sources-details",
+        "76-execution-progress-close-questions"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Явно поручена долговечная memory запись/curation в соответствующей системе.",
+      "action": "Прочитать skill и определить store/права; сохранять подтверждённое reusable знание, не превращать текущую интерпретацию в требование."
+    },
+    {
+      "kind": "skill",
+      "name": "night",
+      "contract_steps": [
+        "S1",
+        "S2",
+        "S4",
+        "S6"
+      ],
+      "rule_ids": [
+        "01-operating-principle",
+        "71-user-intent-outcome",
+        "76-execution-progress-close-questions"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Явно поручен unattended/night режим с конкретными acceptance criteria.",
+      "action": "Прочитать skill, установить границы и stop conditions, продолжать только разрешённую работу и фиксировать наблюдаемый результат."
+    },
+    {
+      "kind": "skill",
+      "name": "obsidian",
+      "contract_steps": [
+        "S2",
+        "S4"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "81-engineering-invariants"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Поручены операции с указанным Obsidian/RLM vault.",
+      "action": "Прочитать skill и проверить актуальный vault path/формат; названный vault не заменять похожим хранилищем."
+    },
+    {
+      "kind": "skill",
+      "name": "operator",
+      "contract_steps": [
+        "S1",
+        "S2",
+        "S5",
+        "S6"
+      ],
+      "rule_ids": [
+        "01-operating-principle",
+        "72-project-sources-details",
+        "80-independent-review"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Пользователь или проект выбрал packet-wave operator workflow.",
+      "action": "Прочитать действующие role/skill contracts и files scope; соблюдать его gates фоновым dispatch, не навязывать этот процесс обычной task-задаче."
+    },
+    {
+      "kind": "skill",
+      "name": "operator-loop",
+      "contract_steps": [
+        "S1",
+        "S2",
+        "S4",
+        "S6"
+      ],
+      "rule_ids": [
+        "01-operating-principle",
+        "72-project-sources-details",
+        "76-execution-progress-close-questions",
+        "80-independent-review"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Поручен конкретный поддерживаемый operator tick/loop.",
+      "action": "Прочитать skill и текущий harness; не переносить Claude-only commands в mcode и не создавать расписание из простого разового поручения."
+    },
+    {
+      "kind": "skill",
+      "name": "operator-orchestrator",
+      "contract_steps": [
+        "S1",
+        "S2",
+        "S5"
+      ],
+      "rule_ids": [
+        "01-operating-principle",
+        "72-project-sources-details",
+        "80-independent-review"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Выбрана top-level coordination существующей packet wave.",
+      "action": "Прочитать workflow, определить ownership/dependencies и реальные роли; старые model рекомендации не создают user override."
+    },
+    {
+      "kind": "skill",
+      "name": "pdf",
+      "contract_steps": [
+        "S2",
+        "S4",
+        "S6"
+      ],
+      "rule_ids": [
+        "71-user-intent-outcome",
+        "72-project-sources-details",
+        "73-tests-not-proof"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "PDF — основной вход или итоговый документ.",
+      "action": "Загрузить skill, выполнить подходящее extraction/OCR/render/fill, проверить содержимое и фактическую видимую страницу."
+    },
+    {
+      "kind": "skill",
+      "name": "pi-bench",
+      "contract_steps": [
+        "S2",
+        "S4",
+        "S5"
+      ],
+      "rule_ids": [
+        "70-reasoning-poison",
+        "72-project-sources-details",
+        "73-tests-not-proof"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Поручен benchmark конкретного pi harness.",
+      "action": "Прочитать skill, запускать только целевую среду, различать deterministic checks, telemetry и независимую поведенческую оценку."
+    },
+    {
+      "kind": "skill",
+      "name": "pixel-perfect",
+      "contract_steps": [
+        "S2",
+        "S4",
+        "S5"
+      ],
+      "rule_ids": [
+        "73-tests-not-proof",
+        "75-evidence-or-blocker",
+        "77-layout-model-and-verification"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Запрошено сравнение живой страницы с Figma/reference или visual QA.",
+      "action": "Загрузить skill; сравнивать реальные изображения, geometry и состояния; parity на sampled widths не разрешает fixed-size artboard."
+    },
+    {
+      "kind": "skill",
+      "name": "plan-multi-review",
+      "contract_steps": [
+        "S2",
+        "S5"
+      ],
+      "rule_ids": [
+        "01-operating-principle",
+        "72-project-sources-details",
+        "80-independent-review"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Явно выбран многоперспективный plan review.",
+      "action": "Прочитать skill и дать каждому критику нейтральный source brief; background/freshness обязательны, дополнительный quorum не возникает автоматически."
+    },
+    {
+      "kind": "skill",
+      "name": "playwright-cli",
+      "contract_steps": [
+        "S2",
+        "S4"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "73-tests-not-proof",
+        "77-layout-model-and-verification"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Браузерная автоматизация или Playwright tests выполняются через выбранный CLI.",
+      "action": "Прочитать skill, устанавливать наблюдаемые условия, проверять реальные действия и логи; при замене инструмента не приписывать результат исходному механизму."
+    },
+    {
+      "kind": "skill",
+      "name": "pptx",
+      "contract_steps": [
+        "S2",
+        "S4",
+        "S6"
+      ],
+      "rule_ids": [
+        "71-user-intent-outcome",
+        "72-project-sources-details",
+        "73-tests-not-proof"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Нужно прочитать, создать или изменить PowerPoint.",
+      "action": "Загрузить skill, сохранить source requirements и layouts; проверить видимые слайды и содержание после последней правки."
+    },
+    {
+      "kind": "skill",
+      "name": "project-documentation",
+      "contract_steps": [
+        "S2",
+        "S4",
+        "S6"
+      ],
+      "rule_ids": [
+        "71-user-intent-outcome",
+        "72-project-sources-details",
+        "79-behavior-comments-and-contract"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Поручена долговечная проектная документация о поведении, архитектуре или контрактах.",
+      "action": "Прочитать skill, выводить документ из авторитетных источников и отделять observed implementation от intended behavior."
+    },
+    {
+      "kind": "skill",
+      "name": "project-tree",
+      "contract_steps": [
+        "S2"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "74-use-context-frontier"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Нужна структура файлов/каталогов проекта.",
+      "action": "Загрузить skill и ограничить обзор названным scope; ignored/нерассмотренные области не считать доказанно пустыми."
+    },
+    {
+      "kind": "skill",
+      "name": "responsive-derive",
+      "contract_steps": [
+        "S1",
+        "S2",
+        "S3"
+      ],
+      "rule_ids": [
+        "71-user-intent-outcome",
+        "72-project-sources-details",
+        "77-layout-model-and-verification"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Макет задаёт desktop, а нужное mobile поведение не определено.",
+      "action": "Загрузить skill; вывести лишь допустимые adaptation decisions и уточнить реальный product gap по действующим полномочиям; не запрашивать уже данное разрешение."
+    },
+    {
+      "kind": "skill",
+      "name": "resume-codex",
+      "contract_steps": [
+        "S1",
+        "S2",
+        "S6"
+      ],
+      "rule_ids": [
+        "17-user-correction-rebase",
+        "70-reasoning-poison",
+        "72-project-sources-details",
+        "74-use-context-frontier"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Поручено продолжить конкретную или последнюю Codex сессию в workspace.",
+      "action": "Загрузить skill, прочитать исходные требования/состояние и применить новые corrections; summaries остаются производными."
+    },
+    {
+      "kind": "skill",
+      "name": "skill-creator",
+      "contract_steps": [
+        "S2",
+        "S3",
+        "S4"
+      ],
+      "rule_ids": [
+        "01-operating-principle",
+        "72-project-sources-details",
+        "73-tests-not-proof"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Пользователь просит создать новый reusable skill.",
+      "action": "Загрузить skill, сформулировать условие и результат процедуры, выполнить достаточную evaluation; не применять его для простого исполнения существующего skill."
+    },
+    {
+      "kind": "skill",
+      "name": "skill-refiner",
+      "contract_steps": [
+        "S2",
+        "S3",
+        "S4"
+      ],
+      "rule_ids": [
+        "70-reasoning-poison",
+        "72-project-sources-details",
+        "73-tests-not-proof",
+        "79-behavior-comments-and-contract"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Нужно исправить существующий skill и есть конкретное evidence-backed нарушение.",
+      "action": "Прочитать skill и исходную инструкцию; исправить минимальный доказанный дефект и проверить изменённый сценарий."
+    },
+    {
+      "kind": "skill",
+      "name": "system-constitution",
+      "contract_steps": [
+        "S2",
+        "S3",
+        "S5"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "80-independent-review",
+        "81-engineering-invariants"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Выбран workflow, который действительно governed этой constitution.",
+      "action": "Прочитать актуальный источник прав/инвариантов; не объявлять чужую constitution глобальной властью над mcode по одному имени в каталоге."
+    },
+    {
+      "kind": "skill",
+      "name": "task",
+      "contract_steps": [
+        "S1",
+        "S2",
+        "S3",
+        "S4",
+        "S5",
+        "S6"
+      ],
+      "rule_ids": [
+        "01-operating-principle",
+        "71-user-intent-outcome",
+        "72-project-sources-details",
+        "80-independent-review"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Пользователь требует task-cycle либо он выбран по применимому workflow.",
+      "action": "Загрузить полный skill; выполнить единый цикл через его точные установленные роли в фоне. Недоступная роль — явно непроверенный native gate, а не pass через переименованный general agent."
+    },
+    {
+      "kind": "skill",
+      "name": "task-lite",
+      "contract_steps": [
+        "S1",
+        "S2",
+        "S3",
+        "S4",
+        "S5",
+        "S6"
+      ],
+      "rule_ids": [
+        "01-operating-principle",
+        "71-user-intent-outcome",
+        "72-project-sources-details",
+        "80-independent-review"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Пользователь явно выбрал совместимый trivial task alias.",
+      "action": "Прочитать актуальные alias и task инструкции; глубина не отменяет требования пользователя или applicable review gates, старое короткое description не определяет полный цикл."
+    },
+    {
+      "kind": "skill",
+      "name": "tdai-recall-mechanics",
+      "contract_steps": [
+        "S2",
+        "S3",
+        "S4"
+      ],
+      "rule_ids": [
+        "70-reasoning-poison",
+        "72-project-sources-details",
+        "73-tests-not-proof",
+        "76-execution-progress-close-questions"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Диагностируется шумный/пустой/устаревший TDAI recall или его параметры.",
+      "action": "Прочитать skill, наблюдать retrieval cases и score/filter effects, не сохранять предположение о причине как установленное знание."
+    },
+    {
+      "kind": "skill",
+      "name": "tz",
+      "contract_steps": [
+        "S1",
+        "S2",
+        "S3"
+      ],
+      "rule_ids": [
+        "01-operating-principle",
+        "68-reason-in-user-language",
+        "71-user-intent-outcome",
+        "72-project-sources-details"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Пользователь дал явный старт оформлению ТЗ из сырого ввода.",
+      "action": "Загрузить skill, сохранить полный исходный смысл/порядок и явно обозначить gaps; наличие gap само по себе не останавливает разрешённую часть."
+    },
+    {
+      "kind": "skill",
+      "name": "ui-audit",
+      "contract_steps": [
+        "S4",
+        "S5"
+      ],
+      "rule_ids": [
+        "73-tests-not-proof",
+        "75-evidence-or-blocker",
+        "77-layout-model-and-verification"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Запрошен live UI/accessibility audit.",
+      "action": "Прочитать skill, выполнить реальные проверки accessibility/overflow/overlap/targets; tool finding разобрать по смыслу и дополнить relevant interaction."
+    },
+    {
+      "kind": "skill",
+      "name": "ui-standards",
+      "contract_steps": [
+        "S2",
+        "S3",
+        "S4",
+        "S5"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "77-layout-model-and-verification",
+        "81-engineering-invariants"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Создаётся/проверяется UI либо UI ТЗ по соответствующим элементам.",
+      "action": "Загрузить skill и только нужные element references; проверить затронутое состояние в live render, сохраняя пять widths rule77."
+    },
+    {
+      "kind": "skill",
+      "name": "visual-page",
+      "contract_steps": [
+        "S2",
+        "S4",
+        "S6"
+      ],
+      "rule_ids": [
+        "71-user-intent-outcome",
+        "72-project-sources-details",
+        "73-tests-not-proof"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Пользователь просит visual page либо выбран visual формат для плохо выражаемой текстом информации.",
+      "action": "Загрузить skill; визуал служит смыслу задачи, затем проверить content/interaction/render; новый сайт не создаёт разрешения публичной публикации."
+    },
+    {
+      "kind": "skill",
+      "name": "vue-frontend",
+      "contract_steps": [
+        "S2",
+        "S3",
+        "S4",
+        "S5"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "77-layout-model-and-verification",
+        "79-behavior-comments-and-contract",
+        "81-engineering-invariants"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Изменяются или проверяются Vue components и их contract/layout boundaries.",
+      "action": "Прочитать актуальный skill, переиспользовать project abstractions, проверить affected states и поведение provide/inject/props."
+    },
+    {
+      "kind": "skill",
+      "name": "web-design-guidelines",
+      "contract_steps": [
+        "S2",
+        "S5"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "73-tests-not-proof",
+        "75-evidence-or-blocker",
+        "77-layout-model-and-verification"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Запрошен UI/UX/accessibility review по Web Interface Guidelines.",
+      "action": "Прочитать skill и применимые guidelines; предъявить доказанные нарушения в заданном scope, не подменять конкретные требования личным вкусом."
+    },
+    {
+      "kind": "skill",
+      "name": "x-link-reader",
+      "contract_steps": [
+        "S2"
+      ],
+      "rule_ids": [
+        "70-reasoning-poison",
+        "72-project-sources-details",
+        "75-evidence-or-blocker"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Нужно прочитать содержимое X/Twitter URL или разрешить наблюдавшийся anti-bot failure.",
+      "action": "Прочитать skill, получить проверяемый источник поддерживаемым способом и ограничить вывод реально извлечённым содержимым."
+    },
+    {
+      "kind": "skill",
+      "name": "xlsx",
+      "contract_steps": [
+        "S2",
+        "S4",
+        "S6"
+      ],
+      "rule_ids": [
+        "71-user-intent-outcome",
+        "72-project-sources-details",
+        "73-tests-not-proof"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Spreadsheet файл — основной вход или результат.",
+      "action": "Загрузить skill, сохранить формулы/данные/формат по задаче и проверить расчёты и представление; табличный текст сам по себе не делает xlsx обязательным."
+    },
+    {
+      "kind": "tool",
+      "name": "read",
+      "contract_steps": [
+        "S2",
+        "S3",
+        "S4"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "74-use-context-frontier",
+        "79-behavior-comments-and-contract"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Для решения нужен локальный источник или видимый артефакт, ещё не прочитанный в актуальном виде.",
+      "action": "Прочитать решающий диапазон и соседний contract comment; продолжить truncated output только там, где пропущенное влияет на решение.",
+      "group": "native"
+    },
+    {
+      "kind": "tool",
+      "name": "write",
+      "contract_steps": [
+        "S4"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "79-behavior-comments-and-contract",
+        "81-engineering-invariants"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Разрешено создание файла или полная замена содержимого.",
+      "action": "Для существующего файла сначала установить актуальное содержимое/owner; записать полный результат и проверить затронутое поведение.",
+      "group": "native"
+    },
+    {
+      "kind": "tool",
+      "name": "edit",
+      "contract_steps": [
+        "S4"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "79-behavior-comments-and-contract",
+        "81-engineering-invariants"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Разрешено локальное изменение существующего файла.",
+      "action": "Использовать точный актуальный fragment и принадлежащий scope; сначала прочитать behavior comment, предсказать эффект, обновить contract при его изменении.",
+      "group": "native"
+    },
+    {
+      "kind": "tool",
+      "name": "bash",
+      "contract_steps": [
+        "S3",
+        "S4"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "73-tests-not-proof",
+        "81-engineering-invariants"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Для нужного запуска/пробы требуется shell в native mcode.",
+      "action": "Прочитать schema, использовать задачно ограниченную команду, безопасное quoting и наблюдать exit/output; файловые операции выполнять dedicated tools согласно текущему host contract.",
+      "group": "native"
+    },
+    {
+      "kind": "tool",
+      "name": "grep",
+      "contract_steps": [
+        "S2"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "74-use-context-frontier"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Нужен поиск содержимого локальных файлов через native mcode.",
+      "action": "Искать в названном scope через этот permission-aware tool, затем прочитать решающие hits; search miss ограничить областью поиска.",
+      "group": "native"
+    },
+    {
+      "kind": "tool",
+      "name": "glob",
+      "contract_steps": [
+        "S2"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "74-use-context-frontier"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Нужно найти локальные файлы по имени/шаблону в native mcode.",
+      "action": "Задать узкий pattern, учесть ignored/excluded files и читать найденный источник; не обходить файловый gate shell-поиском.",
+      "group": "native"
+    },
+    {
+      "kind": "tool",
+      "name": "todowrite",
+      "contract_steps": [
+        "S1",
+        "S6"
+      ],
+      "rule_ids": [
+        "01-operating-principle",
+        "71-user-intent-outcome",
+        "76-execution-progress-close-questions"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Есть несколько meaningful steps или пользователь просит видимый task list.",
+      "action": "Записать полный снимок фактического прогресса, сверить перед сдачей; список не заменяет durable task и acceptance.",
+      "group": "native"
+    },
+    {
+      "kind": "tool",
+      "name": "skill",
+      "contract_steps": [
+        "S2"
+      ],
+      "rule_ids": [
+        "01-operating-principle",
+        "72-project-sources-details"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Skill назван пользователем или его прочитанные trigger/description точно подходят действию.",
+      "action": "Загрузить exact catalog name до governed work, соблюдая current loading protocol; сокращённое описание не считается прочитанным SKILL.md.",
+      "group": "native"
+    },
+    {
+      "kind": "tool",
+      "name": "ask_user",
+      "contract_steps": [
+        "S1"
+      ],
+      "rule_ids": [
+        "17-user-correction-rebase",
+        "68-reason-in-user-language",
+        "71-user-intent-outcome",
+        "75-evidence-or-blocker"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "После доступного исследования остался блокирующий product decision, takeover или обязательное текущим workflow подтверждение.",
+      "action": "Задать только решающий вопрос; использовать действующее разрешение и не просить повторить уже ясную задачу.",
+      "group": "native"
+    },
+    {
+      "kind": "tool",
+      "name": "request_feature_enable",
+      "contract_steps": [
+        "S2"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "75-evidence-or-blocker"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Текущий trusted system reminder явно требует feature enable card с конкретным key.",
+      "action": "Передать exact key из reminder и обработать ответ; не придумывать ключ и не вызывать ради optional capability.",
+      "group": "native"
+    },
+    {
+      "kind": "tool",
+      "name": "web_fetch",
+      "contract_steps": [
+        "S2",
+        "S4"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "73-tests-not-proof",
+        "75-evidence-or-blocker"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Решающий источник или endpoint доступен как HTTP(S) text/metadata.",
+      "action": "Получить конкретный URL/response, прочитать нужный текст; raw fetch не доказывает JavaScript render или работу interactive UI.",
+      "group": "native"
+    },
+    {
+      "kind": "tool",
+      "name": "web_search",
+      "contract_steps": [
+        "S2"
+      ],
+      "rule_ids": [
+        "70-reasoning-poison",
+        "72-project-sources-details",
+        "75-evidence-or-blocker"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Требуются неподтверждённые, незнакомые или меняющиеся внешние факты.",
+      "action": "Искать первичные источники и проверить их содержимое/дату; snippets и несколько зависимых копий не считаются независимым подтверждением.",
+      "group": "native"
+    },
+    {
+      "kind": "tool",
+      "name": "task",
+      "contract_steps": [
+        "S2",
+        "S5"
+      ],
+      "rule_ids": [
+        "01-operating-principle",
+        "72-project-sources-details",
+        "80-independent-review"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Нужен установленный workflow role, обязательный implementation-critic или обоснованная независимая/параллельная подзадача.",
+      "action": "Использовать current agent_name, description, prompt и run_in_background=true; точный custom requestRef, agent:<stable-name> при коллизии; model/effort лишь при разрешённом schema override. Critic brief нейтрален; права роли не расширяются. Payload роли: CRYSTAL/PLAN для task-cycle, TASK к нейтральному brief для standalone implementation review; критерии не передаются автором результата.",
+      "group": "native"
+    },
+    {
+      "kind": "tool",
+      "name": "task_append",
+      "contract_steps": [
+        "S4",
+        "S5"
+      ],
+      "rule_ids": [
+        "17-user-correction-rebase",
+        "76-execution-progress-close-questions",
+        "80-independent-review"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Нужно продолжить/скорректировать уже запущенную принадлежащую родителю подзадачу.",
+      "action": "Передать содержательную delta по task_id и использовать returned task_id; admission activated/steered не считать finished result.",
+      "group": "native"
+    },
+    {
+      "kind": "tool",
+      "name": "task_query",
+      "contract_steps": [
+        "S5",
+        "S6"
+      ],
+      "rule_ids": [
+        "75-evidence-or-blocker",
+        "76-execution-progress-close-questions",
+        "80-independent-review"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Неизвестен текущий статус конкретной фоновой подзадачи и он влияет на следующий шаг.",
+      "action": "Один targeted query; running не равен review pass, routine polling не добавляет evidence.",
+      "group": "native"
+    },
+    {
+      "kind": "tool",
+      "name": "task_output",
+      "contract_steps": [
+        "S5",
+        "S6"
+      ],
+      "rule_ids": [
+        "75-evidence-or-blocker",
+        "76-execution-progress-close-questions",
+        "80-independent-review"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Нужен финальный результат обязательного фонового review или содержимое завершённой задачи.",
+      "action": "Прочитать output и error details по реальному task_id, сохранить cursor для incremental read; дождаться completion без частого polling.",
+      "group": "native"
+    },
+    {
+      "kind": "tool",
+      "name": "task_stop",
+      "contract_steps": [
+        "S1",
+        "S5"
+      ],
+      "rule_ids": [
+        "17-user-correction-rebase",
+        "76-execution-progress-close-questions",
+        "80-independent-review"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Пользователь остановил делегированную работу или её scope стал несовместим с новой разрешённой задачей.",
+      "action": "Остановить точный task_id, проверить возвращённый status; завершение родительского turn само по себе ребёнка не отменяет.",
+      "group": "native"
+    },
+    {
+      "kind": "tool",
+      "name": "website_deploy",
+      "contract_steps": [
+        "S4",
+        "S6"
+      ],
+      "rule_ids": [
+        "71-user-intent-outcome",
+        "72-project-sources-details",
+        "73-tests-not-proof",
+        "75-evidence-or-blocker"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Поручена публикация сайта и выполнены актуальные tool-specific условия consent и target selection.",
+      "action": "Передать built directory с index.html и достоверный source_path; для update/new использовать явный выбор, если его требует текущий tool; проверить возвращённый URL и outcome.",
+      "group": "native"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__web-inspector__navigate",
+      "contract_steps": [
+        "S2",
+        "S4"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "73-tests-not-proof",
+        "77-layout-model-and-verification"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Live browser проверка требует заданного route/URL.",
+      "action": "Открыть нужный адрес с проверенной viewport/configuration, учесть сохранённую browser session; подтвердить route и relevant readiness.",
+      "group": "web-inspector"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__web-inspector__go_history",
+      "contract_steps": [
+        "S4"
+      ],
+      "rule_ids": [
+        "73-tests-not-proof",
+        "77-layout-model-and-verification"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Проверяется Back/Forward flow или восстановление UI state.",
+      "action": "Перейти в нужном направлении и проверить route, state и console outcome.",
+      "group": "web-inspector"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__web-inspector__scroll_to_element",
+      "contract_steps": [
+        "S4"
+      ],
+      "rule_ids": [
+        "73-tests-not-proof",
+        "77-layout-model-and-verification"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Целевой элемент/состояние требует прокрутки, lazy-load или проверки scroll-to.",
+      "action": "Прокрутить реальный scroll container до элемента, затем проверить readiness, visibility и действие.",
+      "group": "web-inspector"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__web-inspector__scroll_by",
+      "contract_steps": [
+        "S4"
+      ],
+      "rule_ids": [
+        "73-tests-not-proof",
+        "77-layout-model-and-verification"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Важны sticky, carousel, infinite-scroll или конкретный offset.",
+      "action": "Прокрутить нужный container, проверить boundary и наблюдаемое изменение без предположения о достижении цели.",
+      "group": "web-inspector"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__web-inspector__close",
+      "contract_steps": [
+        "S4",
+        "S6"
+      ],
+      "rule_ids": [
+        "76-execution-progress-close-questions",
+        "81-engineering-invariants"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Завершена принадлежащая задаче browser session и требуется освободить её ресурсы.",
+      "action": "Закрыть только принадлежащую работу, после сохранения нужных evidence; не выдавать закрытие за проверку продукта.",
+      "group": "web-inspector"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__web-inspector__set_color_scheme",
+      "contract_steps": [
+        "S3",
+        "S4"
+      ],
+      "rule_ids": [
+        "73-tests-not-proof",
+        "77-layout-model-and-verification"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Цветовая схема влияет на проверяемый render или требование явно задаёт её.",
+      "action": "Установить scheme до снимка/измерения и включить этот параметр в условия сравнения.",
+      "group": "web-inspector"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__web-inspector__click",
+      "contract_steps": [
+        "S4"
+      ],
+      "rule_ids": [
+        "73-tests-not-proof",
+        "77-layout-model-and-verification"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Проверяемый сценарий включает click по доступному control.",
+      "action": "Проверить target/visibility, выполнить действие и наблюдать пользовательский эффект, а не только успешный tool return.",
+      "group": "web-inspector"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__web-inspector__fill",
+      "contract_steps": [
+        "S4"
+      ],
+      "rule_ids": [
+        "73-tests-not-proof",
+        "77-layout-model-and-verification"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Сценарий требует ввода текста или изменения editable value.",
+      "action": "Установить значение в точном control, проверить validation/submission/render side effects и relevant logs.",
+      "group": "web-inspector"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__web-inspector__select",
+      "contract_steps": [
+        "S4"
+      ],
+      "rule_ids": [
+        "73-tests-not-proof",
+        "77-layout-model-and-verification"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Нужно проверить native select и последствия выбранной option.",
+      "action": "Выбрать существующее значение, наблюдать dependent state и результат.",
+      "group": "web-inspector"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__web-inspector__hover",
+      "contract_steps": [
+        "S4"
+      ],
+      "rule_ids": [
+        "73-tests-not-proof",
+        "77-layout-model-and-verification"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Hover state влияет на требуемое взаимодействие или внешний вид.",
+      "action": "Навести на target, проверить появившийся слой/feedback и доступность альтернативного input mode, если он входит в контракт.",
+      "group": "web-inspector"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__web-inspector__upload_file",
+      "contract_steps": [
+        "S4"
+      ],
+      "rule_ids": [
+        "73-tests-not-proof",
+        "77-layout-model-and-verification",
+        "81-engineering-invariants"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Разрешённый сценарий включает загрузку файла через UI.",
+      "action": "Проверить целевой input и файл, загрузить только допустимый материал, наблюдать progress/error/result.",
+      "group": "web-inspector"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__web-inspector__drag",
+      "contract_steps": [
+        "S4"
+      ],
+      "rule_ids": [
+        "73-tests-not-proof",
+        "77-layout-model-and-verification"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Требуемое поведение включает drag-and-drop.",
+      "action": "Использовать source и target, проверить итоговый порядок/положение/данные и значимый edge case.",
+      "group": "web-inspector"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__web-inspector__press_key",
+      "contract_steps": [
+        "S4"
+      ],
+      "rule_ids": [
+        "73-tests-not-proof",
+        "77-layout-model-and-verification"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Проверяется keyboard navigation, shortcut или управление focus.",
+      "action": "Выполнить нужную клавишу в известном UI state, проверить focus и observable outcome.",
+      "group": "web-inspector"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__web-inspector__visual_screenshot_for_humans",
+      "contract_steps": [
+        "S4",
+        "S5"
+      ],
+      "rule_ids": [
+        "73-tests-not-proof",
+        "75-evidence-or-blocker",
+        "77-layout-model-and-verification"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Делается утверждение о видимом UI после последней значимой правки.",
+      "action": "Получить и осмотреть читаемый снимок relevant region в нужном viewport/state; дополнить geometry/interaction, не заменять их снимком.",
+      "group": "web-inspector"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__web-inspector__get_text",
+      "contract_steps": [
+        "S2",
+        "S4"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "73-tests-not-proof"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Нужен анализ видимого текста или text-only snapshot.",
+      "action": "Извлечь текст и проверить смысл/полноту в заданном scope; layout и usability требуют иных evidence.",
+      "group": "web-inspector"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__web-inspector__get_html",
+      "contract_steps": [
+        "S2",
+        "S3"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "74-use-context-frontier"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Решающий вопрос касается markup, attribute, nesting или SSR.",
+      "action": "Прочитать relevant HTML и сопоставить с source; raw markup не устанавливает computed geometry.",
+      "group": "web-inspector"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__web-inspector__inspect_dom",
+      "contract_steps": [
+        "S2",
+        "S3",
+        "S4"
+      ],
+      "rule_ids": [
+        "74-use-context-frontier",
+        "77-layout-model-and-verification"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Нужно установить реальную иерархию layout blocks и constraints.",
+      "action": "Получить bounded overview и пройти в значимый subtree; связать parent/children с прогнозом reflow.",
+      "group": "web-inspector"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__web-inspector__get_test_ids",
+      "contract_steps": [
+        "S2",
+        "S4"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "73-tests-not-proof",
+        "77-layout-model-and-verification"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Для повторяемого сценария нужны устойчивые selectors.",
+      "action": "Обнаружить реальные test identifiers и проверить target match перед interaction.",
+      "group": "web-inspector"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__web-inspector__query_selector",
+      "contract_steps": [
+        "S2",
+        "S4"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "73-tests-not-proof",
+        "77-layout-model-and-verification"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Нужно проверить точность selector и его targets.",
+      "action": "Ограничить результат, проверить неоднозначность, выбрать фактический элемент и затем измерить/взаимодействовать.",
+      "group": "web-inspector"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__web-inspector__find_by_text",
+      "contract_steps": [
+        "S2",
+        "S4"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "73-tests-not-proof",
+        "77-layout-model-and-verification"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Control/блок известен по видимому тексту, а selector не установлен.",
+      "action": "Найти точный/обоснованный text match, проверить контекст и ambiguity перед действием.",
+      "group": "web-inspector"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__web-inspector__check_visibility",
+      "contract_steps": [
+        "S4"
+      ],
+      "rule_ids": [
+        "73-tests-not-proof",
+        "75-evidence-or-blocker",
+        "77-layout-model-and-verification"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Нужно утверждать, что control виден/доступен, либо диагностируется interaction failure.",
+      "action": "Проверить viewport/clipping, затем выполнить реальное взаимодействие; existence и ненулевая коробка недостаточны.",
+      "group": "web-inspector"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__web-inspector__compare_element_alignment",
+      "contract_steps": [
+        "S3",
+        "S4"
+      ],
+      "rule_ids": [
+        "73-tests-not-proof",
+        "77-layout-model-and-verification"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Требуемое свойство — взаимное выравнивание или размеры двух элементов.",
+      "action": "Сопоставить фактические edges/centers/dimensions с layout model, проверить значимые viewport/states.",
+      "group": "web-inspector"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__web-inspector__inspect_ancestors",
+      "contract_steps": [
+        "S3",
+        "S4"
+      ],
+      "rule_ids": [
+        "74-use-context-frontier",
+        "77-layout-model-and-verification"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Неясен источник max/min width, clipping, margin, positioning или inherited constraint.",
+      "action": "Пройти ancestors до владельца ограничения, исправить причину и проверить dependent children.",
+      "group": "web-inspector"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__web-inspector__element_exists",
+      "contract_steps": [
+        "S2",
+        "S4"
+      ],
+      "rule_ids": [
+        "73-tests-not-proof",
+        "75-evidence-or-blocker",
+        "77-layout-model-and-verification"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Нужно установить только наличие конкретного DOM element.",
+      "action": "Проверить existence и ограничить утверждение этим свойством; видимость и usability проверять отдельно.",
+      "group": "web-inspector"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__web-inspector__measure_element",
+      "contract_steps": [
+        "S3",
+        "S4"
+      ],
+      "rule_ids": [
+        "73-tests-not-proof",
+        "77-layout-model-and-verification"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Нужно установить box model, размер, gap или overflow элемента.",
+      "action": "Измерить реальную geometry в известных условиях и сравнить с прогнозом; isolated совпадение координат не доказывает usability.",
+      "group": "web-inspector"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__web-inspector__get_computed_styles",
+      "contract_steps": [
+        "S3",
+        "S4"
+      ],
+      "rule_ids": [
+        "73-tests-not-proof",
+        "77-layout-model-and-verification"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Решающая причина/критерий зависит от фактического CSS property.",
+      "action": "Получить нужные computed values, сопоставить с source tokens/constraints и видимым результатом.",
+      "group": "web-inspector"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__web-inspector__evaluate",
+      "contract_steps": [
+        "S3",
+        "S4"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "73-tests-not-proof",
+        "77-layout-model-and-verification",
+        "81-engineering-invariants"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Решающий measurement/probe не выражается достаточными специализированными tools.",
+      "action": "Выполнить bounded script с наблюдаемым return; не менять проверяемое поведение ради прохождения проверки.",
+      "group": "web-inspector"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__web-inspector__get_console_logs",
+      "contract_steps": [
+        "S4",
+        "S5"
+      ],
+      "rule_ids": [
+        "73-tests-not-proof",
+        "75-evidence-or-blocker",
+        "77-layout-model-and-verification"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Проверяется browser behavior и есть relevant console diagnostics.",
+      "action": "Прочитать относящиеся к сценарию сообщения с нужным time scope; error разобрать, отсутствие записей не обобщать на весь продукт.",
+      "group": "web-inspector"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__web-inspector__clear_console_logs",
+      "contract_steps": [
+        "S4"
+      ],
+      "rule_ids": [
+        "73-tests-not-proof",
+        "75-evidence-or-blocker"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Нужен изолированный новый probe и прежние deciding logs уже сохранены.",
+      "action": "Очистить только после фиксации значимого evidence, затем воспроизвести сценарий и получить новые logs.",
+      "group": "web-inspector"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__web-inspector__list_network_requests",
+      "contract_steps": [
+        "S3",
+        "S4"
+      ],
+      "rule_ids": [
+        "73-tests-not-proof",
+        "75-evidence-or-blocker",
+        "77-layout-model-and-verification"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Проверяемое UI поведение зависит от network outcome или diagnosing API failure.",
+      "action": "Найти запросы данного сценария и их status/timing, перейти к решающим details.",
+      "group": "web-inspector"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__web-inspector__get_request_details",
+      "contract_steps": [
+        "S3",
+        "S4"
+      ],
+      "rule_ids": [
+        "73-tests-not-proof",
+        "75-evidence-or-blocker",
+        "81-engineering-invariants"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Найден конкретный request, детали которого различают гипотезы.",
+      "action": "Прочитать нужный request/response/timing, защитить чувствительные данные и получить omitted content лишь при необходимости.",
+      "group": "web-inspector"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__web-inspector__wait_for_element",
+      "contract_steps": [
+        "S4"
+      ],
+      "rule_ids": [
+        "73-tests-not-proof",
+        "77-layout-model-and-verification"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Следующее наблюдение зависит от attached/visible/hidden/detached состояния.",
+      "action": "Ждать конкретное наблюдаемое условие с границами, затем проверять результат; произвольный sleep не заменяет readiness.",
+      "group": "web-inspector"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__web-inspector__wait_for_network_idle",
+      "contract_steps": [
+        "S4"
+      ],
+      "rule_ids": [
+        "73-tests-not-proof",
+        "77-layout-model-and-verification"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Network quiescence действительно является частью readiness сценария.",
+      "action": "Дождаться idle и отдельно проверить необходимые fonts/data/layout; idle не гарантирует готовность всего UI.",
+      "group": "web-inspector"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__web-inspector__confirm_output",
+      "contract_steps": [
+        "S2",
+        "S4"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "75-evidence-or-blocker"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Preview+token скрывает данные, необходимые для решающего вывода.",
+      "action": "Получить полный output по выданному token с причиной и прочитать нужную часть, не повторять мутирующий оригинальный вызов.",
+      "group": "web-inspector"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__swatchdog__check_design_drift",
+      "contract_steps": [
+        "S3",
+        "S4",
+        "S5"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "75-evidence-or-blocker",
+        "77-layout-model-and-verification"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Есть reference design tokens и нужно проверить declared UI code на drift.",
+      "action": "Передать точные tokens/code, разобрать violations; read-only style check не доказывает живой render.",
+      "group": "swatchdog"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__computer-use-linux__activate_window",
+      "contract_steps": [
+        "S4"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "73-tests-not-proof",
+        "81-engineering-invariants"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Разрешённое desktop действие требует фокуса конкретного окна.",
+      "action": "Установить проверенный target и подтвердить focus перед input; не воздействовать на похожее окно по догадке.",
+      "group": "computer-use-linux"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__computer-use-linux__click",
+      "contract_steps": [
+        "S4"
+      ],
+      "rule_ids": [
+        "73-tests-not-proof",
+        "75-evidence-or-blocker",
+        "81-engineering-invariants"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Авторизованный desktop сценарий требует click.",
+      "action": "Получить актуальный state/target или coordinate metadata, выполнить click и наблюдать изменение.",
+      "group": "computer-use-linux"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__computer-use-linux__doctor",
+      "contract_steps": [
+        "S2",
+        "S3"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "75-evidence-or-blocker"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Наблюдается desktop integration failure или неизвестна пригодность нужной capability.",
+      "action": "Выполнить одну диагностическую пробу и выбрать следующий шаг по факту, не превращать probe в незапрошенный repair.",
+      "group": "computer-use-linux"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__computer-use-linux__drag",
+      "contract_steps": [
+        "S4"
+      ],
+      "rule_ids": [
+        "73-tests-not-proof",
+        "81-engineering-invariants"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Проверяемое desktop действие включает drag по координатам.",
+      "action": "Использовать актуальную screenshot coordinate system, известные start/end и проверить result.",
+      "group": "computer-use-linux"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__computer-use-linux__focused_window",
+      "contract_steps": [
+        "S2",
+        "S4"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "73-tests-not-proof",
+        "81-engineering-invariants"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Нужно установить recipient клавиатурного действия или проверить смену фокуса.",
+      "action": "Прочитать фактическое focused window до consequential input; title guess не является подтверждением.",
+      "group": "computer-use-linux"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__computer-use-linux__get_app_state",
+      "contract_steps": [
+        "S2",
+        "S4"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "73-tests-not-proof",
+        "75-evidence-or-blocker"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Нужно наблюдать приложение для desktop interaction или проверки результата.",
+      "action": "Получить актуальный screenshot/accessibility state, учесть scale и coordinates; выбрать target из наблюдения.",
+      "group": "computer-use-linux"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__computer-use-linux__list_apps",
+      "contract_steps": [
+        "S2"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "74-use-context-frontier"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Целевое приложение неизвестно среди доступных running apps.",
+      "action": "Получить ограниченный inventory, сопоставить с поручением и выбрать один проверенный app.",
+      "group": "computer-use-linux"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__computer-use-linux__list_windows",
+      "contract_steps": [
+        "S2",
+        "S4"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "74-use-context-frontier",
+        "81-engineering-invariants"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Нужно установить точное окно, bounds или принадлежность focus.",
+      "action": "Прочитать window list и выбрать observed identity; отсутствие записи ограничить возможностями compositor/backend.",
+      "group": "computer-use-linux"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__computer-use-linux__move_window",
+      "contract_steps": [
+        "S4"
+      ],
+      "rule_ids": [
+        "73-tests-not-proof",
+        "81-engineering-invariants"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Авторизованному действию мешает фактически off-screen окно.",
+      "action": "Переместить известное окно в доступную область по current capability, затем проверить state.",
+      "group": "computer-use-linux"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__computer-use-linux__perform_action",
+      "contract_steps": [
+        "S4"
+      ],
+      "rule_ids": [
+        "73-tests-not-proof",
+        "81-engineering-invariants"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Нужное действие реально предоставлено accessibility target.",
+      "action": "Выбрать наблюдаемую semantic action, выполнить и проверить effect; наличие accessibility node не доказывает успешное действие.",
+      "group": "computer-use-linux"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__computer-use-linux__press_key",
+      "contract_steps": [
+        "S4"
+      ],
+      "rule_ids": [
+        "73-tests-not-proof",
+        "81-engineering-invariants"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Авторизованный desktop сценарий требует key/shortcut.",
+      "action": "Установить recipient/focus, использовать актуальную grammar и проверить наблюдаемый эффект.",
+      "group": "computer-use-linux"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__computer-use-linux__resize_window",
+      "contract_steps": [
+        "S3",
+        "S4"
+      ],
+      "rule_ids": [
+        "73-tests-not-proof",
+        "77-layout-model-and-verification",
+        "81-engineering-invariants"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Окно нужно поместить на экран или проверить изменение размеров.",
+      "action": "Изменить frame dimensions известного окна и измерить фактический результат; desktop pixels не считать CSS viewport автоматически.",
+      "group": "computer-use-linux"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__computer-use-linux__screenshot",
+      "contract_steps": [
+        "S4",
+        "S5"
+      ],
+      "rule_ids": [
+        "73-tests-not-proof",
+        "75-evidence-or-blocker",
+        "77-layout-model-and-verification"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Делается визуальное утверждение о desktop app/экране.",
+      "action": "Получить и осмотреть читаемый снимок нужного target, учесть crop/scale; проверить interaction отдельно.",
+      "group": "computer-use-linux"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__computer-use-linux__scroll",
+      "contract_steps": [
+        "S4"
+      ],
+      "rule_ids": [
+        "73-tests-not-proof",
+        "77-layout-model-and-verification"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Desktop content требует прокрутки для сценария/видимости.",
+      "action": "Установить точный container/window, прокрутить и проверить новое состояние/границы.",
+      "group": "computer-use-linux"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__computer-use-linux__set_value",
+      "contract_steps": [
+        "S4"
+      ],
+      "rule_ids": [
+        "73-tests-not-proof",
+        "81-engineering-invariants"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Наблюдаемый accessibility element допускает установку значения.",
+      "action": "Задать разрешённое значение, проверить change/validation и дальнейший effect.",
+      "group": "computer-use-linux"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__computer-use-linux__setup_accessibility",
+      "contract_steps": [
+        "S2",
+        "S4"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "75-evidence-or-blocker",
+        "81-engineering-invariants"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Доказана необходимость AT-SPI для порученной задачи и разрешено менять соответствующую desktop setting.",
+      "action": "Прочитать current setup contract, выполнить ограниченную настройку и проверить readiness; optional отсутствие не создаёт универсального gate.",
+      "group": "computer-use-linux"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__computer-use-linux__setup_window_targeting",
+      "contract_steps": [
+        "S2",
+        "S4"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "75-evidence-or-blocker",
+        "81-engineering-invariants"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Нужное exact targeting недоступно и установка GNOME extension входит в разрешённый scope.",
+      "action": "Проверить необходимость/полномочия, применить поддерживаемый setup и наблюдать результат; не устанавливать автоматически ради удобства.",
+      "group": "computer-use-linux"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__computer-use-linux__type_text",
+      "contract_steps": [
+        "S4"
+      ],
+      "rule_ids": [
+        "73-tests-not-proof",
+        "81-engineering-invariants"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Требуется literal text input в авторизованный desktop target.",
+      "action": "Проверить focus, ввести точный текст и наблюдать значение/эффект; секреты не выводить в диагностический отчёт.",
+      "group": "computer-use-linux"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__codebase-memory-mcp__search_graph",
+      "contract_steps": [
+        "S2"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "74-use-context-frontier"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Нужен поиск definitions/relations в доступном актуальном индексе.",
+      "action": "Выбрать точный project и ограниченный query по current schema; проверить coverage и прочитать решающие sources.",
+      "group": "codebase-memory-mcp"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__codebase-memory-mcp__query_graph",
+      "contract_steps": [
+        "S2",
+        "S3"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "74-use-context-frontier",
+        "81-engineering-invariants"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Решающий вопрос требует multi-hop relation или aggregation.",
+      "action": "Прочитать graph schema, задать bounded Cypher/LIMIT, проверить coverage/freshness и не считать graph выводом о runtime.",
+      "group": "codebase-memory-mcp"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__codebase-memory-mcp__trace_path",
+      "contract_steps": [
+        "S2",
+        "S3"
+      ],
+      "rule_ids": [
+        "74-use-context-frontier",
+        "81-engineering-invariants"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Нужно проследить callers, data flow или cross-service impact.",
+      "action": "Установить точный symbol/project, пройти только decision-relevant path, прочитать defining contracts и gaps.",
+      "group": "codebase-memory-mcp"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__codebase-memory-mcp__get_code_snippet",
+      "contract_steps": [
+        "S2",
+        "S3"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "74-use-context-frontier",
+        "79-behavior-comments-and-contract"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "После graph discovery нужно прочитать решающий symbol.",
+      "action": "Сначала получить exact qualified_name через search_graph; прочитать snippet и coverage note, при gaps обратиться к direct source.",
+      "group": "codebase-memory-mcp"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__codebase-memory-mcp__get_graph_schema",
+      "contract_steps": [
+        "S2"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "74-use-context-frontier"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Структура graph query неизвестна или version-sensitive.",
+      "action": "Получить schema для нужного project перед построением query, переиспользовать пока актуальна.",
+      "group": "codebase-memory-mcp"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__codebase-memory-mcp__get_architecture",
+      "contract_steps": [
+        "S2",
+        "S3"
+      ],
+      "rule_ids": [
+        "74-use-context-frontier",
+        "81-engineering-invariants"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Для решения нужен обзор owners, entry points или architecture boundary.",
+      "action": "Запросить только решающие aspects, сверить важные relations с source и прекратить обзор после закрытия вопроса.",
+      "group": "codebase-memory-mcp"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__codebase-memory-mcp__search_code",
+      "contract_steps": [
+        "S2"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "74-use-context-frontier"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Нужен text-pattern поиск с graph enrichment.",
+      "action": "Выбрать bounded project/pattern, учитывать truncation и открыть полный deciding symbol/source.",
+      "group": "codebase-memory-mcp"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__codebase-memory-mcp__list_projects",
+      "contract_steps": [
+        "S2"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "74-use-context-frontier"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Для graph операции ещё не установлен exact indexed project.",
+      "action": "Найти нужный project по реальному root/context; не исследовать другой репозиторий из-за удобства старой гипотезы.",
+      "group": "codebase-memory-mcp"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__codebase-memory-mcp__index_status",
+      "contract_steps": [
+        "S2"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "74-use-context-frontier",
+        "75-evidence-or-blocker"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Предстоит опереться на coverage/freshness graph.",
+      "action": "Проверить root/git context, partial/skipped/not_indexed области и direct-source fallbacks; отсутствие gap marker не доказывает полноту.",
+      "group": "codebase-memory-mcp"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__codebase-memory-mcp__check_index_coverage",
+      "contract_steps": [
+        "S2",
+        "S3"
+      ],
+      "rule_ids": [
+        "74-use-context-frontier",
+        "75-evidence-or-blocker"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Graph discovery дал cited/operated-on файлы или предстоит negative/exhaustive claim.",
+      "action": "Проверить exact paths/scopes, отделить coverage от metadata freshness и прочитать необходимые direct sources; индекс без recorded gaps не гарантирует completeness.",
+      "group": "codebase-memory-mcp"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__codebase-memory-mcp__detect_changes",
+      "contract_steps": [
+        "S2",
+        "S3",
+        "S5"
+      ],
+      "rule_ids": [
+        "74-use-context-frontier",
+        "81-engineering-invariants"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Для review/изменения нужен blast radius относительно заданной git base.",
+      "action": "Установить actual base/merge-base, прочитать changed symbols/impacted set с truncation; сопоставить affected callers с требованиями.",
+      "group": "codebase-memory-mcp"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__figma-bridge__figma_get_status",
+      "contract_steps": [
+        "S2"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "75-evidence-or-blocker"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Не установлена доступность bridge/target для порученной Figma операции.",
+      "action": "Проверить listener/connected files и при нужде read-only roundtrip; advertised tool не означает connected target.",
+      "group": "figma-bridge"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__figma-bridge__figma_list_open_files",
+      "contract_steps": [
+        "S2"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "74-use-context-frontier"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Нужно выбрать конкретный connected Figma file.",
+      "action": "Получить список и установить exact file identity; tool не открывает произвольный удалённый файл.",
+      "group": "figma-bridge"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__figma-bridge__figma_navigate",
+      "contract_steps": [
+        "S2",
+        "S4"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "81-engineering-invariants"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Перед операцией необходимо pin уже подключённого файла по URL.",
+      "action": "Выбрать проверенный connected target, подтвердить identity и не путать navigate с remote open.",
+      "group": "figma-bridge"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__figma-bridge__figma_get_selection",
+      "contract_steps": [
+        "S2",
+        "S4"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "77-layout-model-and-verification",
+        "81-engineering-invariants"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Сценарий опирается на текущую selection либо её target неизвестен.",
+      "action": "Прочитать реальную selection и установить exact nodes перед read/write.",
+      "group": "figma-bridge"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__figma-bridge__figma_reconnect",
+      "contract_steps": [
+        "S2",
+        "S4"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "75-evidence-or-blocker",
+        "76-execution-progress-close-questions"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Наблюдён disconnected/stale bridge и требуется разрешённое восстановление.",
+      "action": "Выполнить supported reconnect, установить возвращённое состояние; ограничить retries и не считать cache clear успешной design mutation.",
+      "group": "figma-bridge"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__figma-bridge__figma_diagnose",
+      "contract_steps": [
+        "S2",
+        "S3"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "75-evidence-or-blocker"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Наблюдён сбой local listener/plugin connection.",
+      "action": "Получить targeted diagnosis и изменить следующий шаг по evidence; не выдумывать недоступность удалённого Figma API.",
+      "group": "figma-bridge"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__figma-bridge__figma_list_pages",
+      "contract_steps": [
+        "S2"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "74-use-context-frontier",
+        "77-layout-model-and-verification"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Не установлена нужная page в captured target file.",
+      "action": "Прочитать ids/names/current page и выбрать точную страницу.",
+      "group": "figma-bridge"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__figma-bridge__figma_focus_page",
+      "contract_steps": [
+        "S2",
+        "S4"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "77-layout-model-and-verification",
+        "81-engineering-invariants"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Операция требует сделать целевой page текущей.",
+      "action": "Выбрать exact id при duplicate names, проверить target before mutation.",
+      "group": "figma-bridge"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__figma-bridge__figma_execute",
+      "contract_steps": [
+        "S3",
+        "S4"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "73-tests-not-proof",
+        "77-layout-model-and-verification",
+        "81-engineering-invariants"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Нужная разрешённая Figma операция выражается Plugin API code.",
+      "action": "Использовать actual schema и известный target; после timeout прочитать реальное состояние перед повтором, после mutation проверить результат.",
+      "group": "figma-bridge"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__figma-bridge__figma_walk",
+      "contract_steps": [
+        "S2",
+        "S3"
+      ],
+      "rule_ids": [
+        "74-use-context-frontier",
+        "77-layout-model-and-verification"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Для layout/model нужен обход page/subtree.",
+      "action": "Читать bounded chunks и продолжать по cursor лишь до достаточного coverage; partial walk не доказывает отсутствие узлов.",
+      "group": "figma-bridge"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__figma-bridge__figma_capture_screenshot",
+      "contract_steps": [
+        "S4",
+        "S5"
+      ],
+      "rule_ids": [
+        "73-tests-not-proof",
+        "75-evidence-or-blocker",
+        "77-layout-model-and-verification"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Нужно утверждать видимый результат Figma изменения или сравнить reference.",
+      "action": "Получить и осмотреть live node image после последней правки, учесть guard/масштаб и проверить структуру отдельно.",
+      "group": "figma-bridge"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__figma-bridge__figma_get_design_changes",
+      "contract_steps": [
+        "S2",
+        "S4"
+      ],
+      "rule_ids": [
+        "17-user-correction-rebase",
+        "74-use-context-frontier",
+        "75-evidence-or-blocker"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Нужны реальные buffered изменения target file с прошлого наблюдения.",
+      "action": "Прочитать relevant change buffer; очищать его только после сохранения решающего evidence, не приписывать авторство без источника.",
+      "group": "figma-bridge"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__figma-bridge__figma_lint_design",
+      "contract_steps": [
+        "S4",
+        "S5"
+      ],
+      "rule_ids": [
+        "73-tests-not-proof",
+        "75-evidence-or-blocker",
+        "77-layout-model-and-verification"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Нужно проверить target по доступным wcag/design-system/layout lint groups.",
+      "action": "Выбрать relevant groups, разобрать violations; lint не заменяет осмотр, responsive behavior или пользовательский критерий.",
+      "group": "figma-bridge"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__figma-bridge__figma_get_design_system_summary",
+      "contract_steps": [
+        "S2",
+        "S3"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "77-layout-model-and-verification",
+        "81-engineering-invariants"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Решение должно переиспользовать существующие local variables/components.",
+      "action": "Прочитать систему нужного file, учитывать cache freshness/refresh и связывать новые элементы с реальными tokens.",
+      "group": "figma-bridge"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__figma-bridge__figma_search_components",
+      "contract_steps": [
+        "S2",
+        "S3"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "77-layout-model-and-verification",
+        "81-engineering-invariants"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Перед созданием компонента нужно найти подходящую существующую abstraction.",
+      "action": "Искать в exact connected file с pagination, проверить candidate details и scope; local miss не доказывает отсутствия во внешней library.",
+      "group": "figma-bridge"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__figma-bridge__figma_get_component_details",
+      "contract_steps": [
+        "S2",
+        "S3"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "77-layout-model-and-verification",
+        "81-engineering-invariants"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Выбран component/set, свойства которого влияют на reuse.",
+      "action": "Прочитать unique key или resolve exact-name candidates; проверить variants/contract до изменения.",
+      "group": "figma-bridge"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__figma-bridge__figma_get_token_values",
+      "contract_steps": [
+        "S2",
+        "S3"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "77-layout-model-and-verification"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Цвета, размеры, spacing или modes должны соответствовать tokens.",
+      "action": "Прочитать actual local values и aliases; нерешённый alias не заменять догадкой.",
+      "group": "figma-bridge"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__figma-bridge__figjam_get_board_contents",
+      "contract_steps": [
+        "S2",
+        "S3"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "74-use-context-frontier"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Источником задачи является connected FigJam board.",
+      "action": "Получить bounded structured contents, продолжить discovery при deciding gaps и сохранить смысл исходных элементов.",
+      "group": "figma-bridge"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__figma-bridge__figjam_get_connections",
+      "contract_steps": [
+        "S2",
+        "S3"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "74-use-context-frontier"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Для модели/диаграммы существенны связи между FigJam узлами.",
+      "action": "Прочитать реальные connector endpoints и проверить их смысл по содержимому узлов.",
+      "group": "figma-bridge"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__figma-bridge__figma_import_image",
+      "contract_steps": [
+        "S4"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "73-tests-not-proof",
+        "77-layout-model-and-verification",
+        "81-engineering-invariants"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Разрешённая design mutation требует импортировать изображение в известные nodes/selection.",
+      "action": "Проверить источник/target и ограничения bytes/timeout; после импорта осмотреть результат и нужные размеры.",
+      "group": "figma-bridge"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__project-graph__graph_status",
+      "contract_steps": [
+        "S2"
+      ],
+      "rule_ids": [
+        "72-project-sources-details",
+        "74-use-context-frontier",
+        "75-evidence-or-blocker"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Планируется опора на project graph/cache и его актуальность неизвестна.",
+      "action": "Проверить CBM/cache state, затем использовать лишь подходящие данные или direct source fallback.",
+      "group": "project-graph"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__project-graph__graph_overview",
+      "contract_steps": [
+        "S2",
+        "S3"
+      ],
+      "rule_ids": [
+        "74-use-context-frontier",
+        "81-engineering-invariants"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Нужна bounded L0 структура для определения затронутых owners.",
+      "action": "Прочитать обзор, выделить решающую boundary и перейти к конкретному source вместо полного обхода.",
+      "group": "project-graph"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__project-graph__graph_file",
+      "contract_steps": [
+        "S2",
+        "S3"
+      ],
+      "rule_ids": [
+        "74-use-context-frontier",
+        "81-engineering-invariants"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Уже известен файл и важны его one-hop dependencies/coverage.",
+      "action": "Запросить exact repository path, проверить relevant callers/contracts и gaps.",
+      "group": "project-graph"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__project-graph__graph_architecture",
+      "contract_steps": [
+        "S2",
+        "S3"
+      ],
+      "rule_ids": [
+        "74-use-context-frontier",
+        "81-engineering-invariants"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Решение зависит от имеющейся cached architecture.",
+      "action": "Получить cache/build state, проверить applicability и не выдавать незавершённую генерацию за готовый результат.",
+      "group": "project-graph"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__project-graph__graph_architecture_refresh",
+      "contract_steps": [
+        "S2",
+        "S3"
+      ],
+      "rule_ids": [
+        "74-use-context-frontier",
+        "76-execution-progress-close-questions"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Доказано, что отсутствующая/устаревшая architecture нужна для текущего решения.",
+      "action": "Запустить/дождаться поддерживаемого refresh с пределами; при достаточном direct source не создавать новый gate.",
+      "group": "project-graph"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__project-graph__graph_architecture_invalidate",
+      "contract_steps": [
+        "S2",
+        "S3"
+      ],
+      "rule_ids": [
+        "74-use-context-frontier",
+        "76-execution-progress-close-questions",
+        "81-engineering-invariants"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Наблюдается конкретная stale generation, которую разрешено перестроить.",
+      "action": "Инвалидировать именно текущую generation и наблюдать rebuild; не сбрасывать пригодный cache ради уверенности.",
+      "group": "project-graph"
+    },
+    {
+      "kind": "tool",
+      "name": "update_goal",
+      "contract_steps": [
+        "S6"
+      ],
+      "rule_ids": [
+        "71-user-intent-outcome",
+        "75-evidence-or-blocker",
+        "76-execution-progress-close-questions"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Host управляет уже существующей goal, а outcome закрыт/реально blocked; либо пользователь явно меняет token budget.",
+      "action": "Соблюсти current mode/status protocol; для budget сначала get_goal и exact revision guards. Не редактирует objective и не заменяет control-task; terminal complete только после обязательной работы.",
+      "group": "native"
+    },
+    {
+      "kind": "tool",
+      "name": "get_goal",
+      "contract_steps": [
+        "S1",
+        "S6"
+      ],
+      "rule_ids": [
+        "71-user-intent-outcome",
+        "75-evidence-or-blocker",
+        "76-execution-progress-close-questions"
+      ],
+      "necessity": "required",
+      "basis": "advertised-trigger",
+      "condition": "Нужен actual host goal status или непосредственно готовится разрешённый budget update.",
+      "action": "Прочитать состояние/guards; empty result не означает созданную goal, token budget менять лишь по явному запросу.",
+      "group": "native"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__agent-state__agent_state_note",
+      "contract_steps": [
+        "S6"
+      ],
+      "rule_ids": [
+        "70-reasoning-poison",
+        "74-use-context-frontier",
+        "76-execution-progress-close-questions"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Во время работы получено новое полезное reusable знание, которое нужно сохранить до возможной compaction.",
+      "action": "Записать applicability, процедуру и evidence либо обновить own note_id; задачи/прогресс не писать сюда. Pending не равен commit; storage failure не останавливает следующую разрешённую работу.",
+      "group": "agent-state"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__agent-state__agent_state_checkpoint",
+      "contract_steps": [
+        "S6"
+      ],
+      "rule_ids": [
+        "70-reasoning-poison",
+        "74-use-context-frontier",
+        "76-execution-progress-close-questions"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Выбран compatibility способ обновить один private reusable guide.",
+      "action": "Сохранить только проверенное reusable знание по current limits; не создавать второй task anchor или compulsory progress checkpoint.",
+      "group": "agent-state"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__control-task__control_task_get",
+      "contract_steps": [
+        "S1",
+        "S2"
+      ],
+      "rule_ids": [
+        "17-user-correction-rebase",
+        "70-reasoning-poison",
+        "74-use-context-frontier",
+        "76-execution-progress-close-questions"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Для восстановления/correction нужен полный durable task или исходные input locators.",
+      "action": "Прочитать task и relevant originals, отличать authored anchor от user source; raw observation сама по себе не доказывает human provenance.",
+      "group": "control-task"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__control-task__control_task_set",
+      "contract_steps": [
+        "S1",
+        "S6"
+      ],
+      "rule_ids": [
+        "17-user-correction-rebase",
+        "71-user-intent-outcome",
+        "76-execution-progress-close-questions"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Появилась/существенно изменилась долговечная постановка и выбран полный set вместо patch.",
+      "action": "Сохранить весь outcome, совместимые требования, source refs и явно условные inference; не писать progress. Нужен set ИЛИ patch, не оба; storage failure не блокирует работу.",
+      "group": "control-task"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__control-task__control_task_patch",
+      "contract_steps": [
+        "S1",
+        "S6"
+      ],
+      "rule_ids": [
+        "17-user-correction-rebase",
+        "71-user-intent-outcome",
+        "76-execution-progress-close-questions"
+      ],
+      "necessity": "required",
+      "basis": "contract",
+      "condition": "Требование добавлено/изменено/отменено и выбран атомарный anchored patch текущей revision.",
+      "action": "Использовать expectedRevision и уникальные anchors, сохранить незатронутое; новую обязанность «ещё Y» включить по смыслу. Rejection не считать commit и не превращать bookkeeping в gate.",
+      "group": "control-task"
+    },
+    {
+      "kind": "tool",
+      "name": "mcp__control-task__control_task_confirm",
+      "contract_steps": [
+        "S6"
+      ],
+      "rule_ids": [
+        "17-user-correction-rebase",
+        "76-execution-progress-close-questions"
+      ],
+      "necessity": "recommended",
+      "basis": "optional-workflow",
+      "condition": "Добровольно фиксируется review metadata действительно просмотренных input revisions без изменения задачи.",
+      "action": "Указать только реально проверенный revision; отсутствие confirm не мешает работе, изменение requirements требует set/patch.",
+      "group": "control-task"
+    }
+  ]
+}

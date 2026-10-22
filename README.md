@@ -27,7 +27,7 @@ node --version
 Clone this repository, or update your existing checkout, then run the upgrade
 block **from the checkout root**. It copies complete plugin packages, including
 hidden manifests and `scripts/runtime/`, plus the 24 roles, task skill, standing
-rules and `AGENTS.md`. It preserves the native `v2/plugin-data` directory and
+rules, their reference documents and `AGENTS.md`. It preserves the native `v2/plugin-data` directory and
 backs up files that it replaces. Existing `mcp.json`, `config.yaml`, permissions
 and credentials are left in place.
 
@@ -35,7 +35,12 @@ The example uses the standard data directory `~/.minimax`; when your host uses
 another directory, set `MINIMAX_DATA_DIR` to its actual absolute path before
 running it. The current injection-rules user-rule reader uses
 `~/.minimax/rules` independently of that data-root setting. Review your own
-modified rules and instructions against the backup after an upgrade.
+modified rules and instructions against the backup after an upgrade. The block
+also retires the ten rejected consolidation rules from the earlier session,
+but only when a filename **and the SHA-256 of its complete bytes** match a known
+generated version. Modified files, symlinks and unrelated rules remain in place;
+the command identifies retained legacy candidates for manual review. The backup
+contains all user rules, including every file retired by this migration.
 
 <!-- install-upgrade -->
 ```sh
@@ -49,17 +54,50 @@ modified rules and instructions against the backup after an upgrade.
   bun scripts/sync-plugin-runtime.mjs --check
   /usr/bin/flock --version
   mkdir -p "$mcode_backup_dir" "$mcode_data_dir/plugins" \
-    "$mcode_data_dir/skills" "$mcode_data_dir/agents" "$mcode_rules_dir"
-  for mcode_item in plugins skills agents AGENTS.md; do
+    "$mcode_data_dir/skills" "$mcode_data_dir/agents" "$mcode_data_dir/docs" "$mcode_rules_dir"
+  for mcode_item in plugins skills agents docs AGENTS.md; do
     if [ -e "$mcode_data_dir/$mcode_item" ]; then
       cp -a "$mcode_data_dir/$mcode_item" "$mcode_backup_dir/"
     fi
   done
   cp -a "$mcode_rules_dir" "$mcode_backup_dir/user-rules"
 
+  MCODE_UPGRADE_RULES_DIR="$mcode_rules_dir" bun - <<'BUN'
+import { createHash } from 'node:crypto';
+import { lstatSync, readFileSync, unlinkSync } from 'node:fs';
+import { join } from 'node:path';
+// Exact generated versions recovered from the rejected 2026-10-22 catalogue.
+// A changed file is user-owned: retain it, even when its name is on this list.
+const retired = {
+  '10-goal-and-outcome.json': ['18934123ed691383178c39ab47e3bd8551900aa17cec82a60c8b8966f90839f1'],
+  '11-prediction-and-veto.json': ['6d7af9f699b738dbcc3ef75f20e4bbd8ae00488f9197febc670db572925425c8'],
+  '12-evidence-and-verification.json': ['7e59dab8a2254bf5f50773825820b6a026e2dc78f9db9d895fe032080bb6ce15'],
+  '13-execution-and-progress.json': ['5cb84fd613ee1d58ea28ffbf649bcb741869ad1b6a5ab2f457bc1edde963c976'],
+  '14-sources-and-context.json': ['e0cc72341e40dbac3d9e31ae74fed061fc8c7de96c5cbd6ab7e1b5f62acbfa6e'],
+  '15-communication-and-language.json': ['2f156f87b91368a4fd8a874172d86bc9f0aabb672f4717ca08052e63a555ed9d'],
+  '16-layout-model-and-verification.json': ['9f93479ab7443ef2b300306d887f1dc23a0cb879c2d733ff7f4c5ea9a4c94f47'],
+  '17-behavior-comments-and-contract.json': ['9b64bbc70899cbb66537a3f5ff047b7a14074234c97549b8c8b2cd3f881c7360'],
+  '18-task-cycle-and-review-contract.json': ['6b920a0140111e05c47a62081c78acded4f7077e93102ab16155970bd9554429', '13d6be03d38cc9041a9520be5ff510e14dacf77635a3116311be38359ac92490'],
+  '19-independent-verification-no-self-defence.json': ['a954915a04258c14df904ff61f3e471b6e9676434f41ba7ace9a1bb22a14d3fc'],
+};
+for (const [name, knownHashes] of Object.entries(retired)) {
+  const path = join(process.env.MCODE_UPGRADE_RULES_DIR, name);
+  let stat;
+  try { stat = lstatSync(path); }
+  catch (error) { if (error.code === 'ENOENT') continue; throw error; }
+  if (stat.isFile() && knownHashes.includes(createHash('sha256').update(readFileSync(path)).digest('hex'))) {
+    unlinkSync(path);
+    console.log(`Retired backed-up legacy rule: ${name}`);
+  } else {
+    console.warn(`Retained modified legacy candidate; review against the backup: ${name}`);
+  }
+}
+BUN
+
   cp -a plugins/. "$mcode_data_dir/plugins/"
   cp -a skills/. "$mcode_data_dir/skills/"
   cp -a agents/. "$mcode_data_dir/agents/"
+  cp -a docs/. "$mcode_data_dir/docs/"
   cp -a rules/. "$mcode_rules_dir/"
   cp AGENTS.md "$mcode_data_dir/AGENTS.md"
 )
@@ -123,7 +161,7 @@ runtime/              canonical shared boundary/storage modules
 scripts/              runtime-copy synchronization and isolated Bun test runner
 tests/                ordinary and opt-in native-host checks
 docs/                 contracts and evidence boundaries
-roles-src/             raw role prompts the agents/ dir was generated from
+roles-src/             historical raw imports; installed authority is agents/<name>/agent.md
 ```
 
 A plugin package looks like this:
@@ -253,12 +291,29 @@ User rules override bundled defaults by `name`. This repository keeps the shippe
 in the top-level `rules/` directory, so install **both the plugin and the rule files**.
 The engine reloads them on each hook invocation.
 
-All nine shipped rules have full standing bodies enabled at startup and in subagents.
-`70-reasoning-poison` delivers its **entire current body every three completed
+All fourteen shipped rules have full standing bodies enabled at startup and in subagents.
+`70-reasoning-poison` delivers its **entire current body every two completed
 `PostToolUse` calls**, including execution errors, and on every new input. The body
 includes `ОБЯЗАТЕЛЬНО СЛЕДУЙ ДОСЛОВНО ЭТОМУ ПРАВИЛУ`. It preserves the distinction between reasoning
 and evidence, invalidates conclusions built on a disproved premise, and treats an
-already-supported answer to the user as a ready action.
+already-supported answer to the user as a ready action. It also ties every artifact
+to the intended outcome and requires checking the resulting behavior.
+
+`71-user-intent-outcome` reminds every **five** completed tool calls: model the
+affected behavior, predict the next transition, then compare with observation.
+Other rules use different tool cadences (3, 7, 11, 13, 17, 19, 23, 29, 31, 37 and
+41); input reminders remain separate. These intervals spread reminders without
+promising that they never coincide. Cadences come from each rule's `remind`
+configuration; `_distribution.json` and `remind.on_user_end` are not engine controls.
+
+The unified system is documented in order: [inventory](docs/standing-rules/01-inventory.md)
+→ [desired behavior](docs/standing-rules/02-desired-behavior.md)
+→ [executable contracts](docs/standing-rules/03-contracts.md)
+→ [conditional tool and skill bindings](docs/standing-rules/04-bindings.md).
+The catalog records 73 advertised skills and 116 tools from the source session;
+it does not assert present availability or successful execution. Read the current
+skill instructions and tool schemas before use. Active rule bodies contain the
+procedures and essential bindings even when reference documents are unavailable.
 
 | Host event | Delivery |
 | --- | --- |
@@ -289,7 +344,7 @@ A rule is a JSON file:
 ```
 
 `remind.send_full_rule: true` selects the complete current `body` instead of `suffix`.
-`remind.every_n_tools: 3` counts three completed tool-hook events per session,
+`remind.every_n_tools: 2` counts two completed tool-hook events per session,
 including each result in a batch. It is independent of user prompts and survives
 compaction/resume. Tool counters use atomic writes under a bounded per-session
 lock; missing or corrupt state reports a diagnostic without resetting the count
@@ -411,6 +466,31 @@ working directory, so they only start in a Git repository.
 `agents/<name>/agent.md` holds a role contract. Frontmatter accepts `name`, `description`,
 `model`, `effort`, `tools`, `disallowedTools`, `mcpServers`, `skills` and `x-mavis`. Roles are
 dispatched with the `task` tool by name.
+
+All subagent launches use `run_in_background: true`. Use the current schema's
+`agent_name` and the exact installed role name (or `agent:<name>` when needed to
+disambiguate a builtin). Reviewers receive the original task and neutral source
+locators, without arguments defending the implementation or suggesting a verdict.
+
+The five task-cycle roles share the JSON verdict contract documented by the task
+skill. Their artifact checks use the available file/search/shell tools; there is
+no required `task_artifact_check` tool or separate native pipeline driver.
+
+| Review context | Exact prompt payload |
+| --- | --- |
+| Task-cycle implementation review | `CRYSTAL: <absolute path>` and `PLAN: <absolute path>`, on separate lines; optional `UNIT: U<n>` selects a declared unit |
+| Standalone implementation review | One line: `TASK: <absolute path>` |
+| Product acceptance in the task-cycle | One line: `CRYSTAL: <absolute path>` |
+
+The standalone TASK brief contains `## Request` with the original request and
+compatible corrections, `## Context` with repository roots and source locators,
+and `## Files` with absolute regular-file `- read:` / `- write:` entries. It is
+read-only by default (`repair-mode: none`); `repair-mode: scoped` permits repairs
+only when the original authorization and a specific write entry both allow them.
+This remains a verification gate: a demonstrated defect gives a negative verdict
+even when the reviewer cannot edit. Missing required evidence gives `blocked`.
+The delivery owner obtains this review outside task-skill too; leaf reviewers do
+not recursively review their own verdicts.
 
 `tools` is a strict allowlist matched by exact tool name. A role that lists `read, bash` gets
 exactly those two — nothing else, including MCP tools. There is no wildcard: `mcp__*` matches

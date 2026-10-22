@@ -18,11 +18,27 @@ itself.
 - Order: extract the plan down to concrete actions through the plan gate FIRST; write code only
   after the plan is accepted.
 
-The plan must parse before it is handed off: run the artifact check on the crystal and the plan
-after every edit and fix every returned problem. A plan that does not parse is not a deliverable —
-quote the check's `ok`, error and hint in the report. Typical defects: a unit touchpoint missing
-from `## Files`, UNITS under a crystal that is not `task-depth: complex`, a Files line that is not
-`- write: /abs` or `- read: /abs`.
+## Validate the actual artifacts
+
+Read the current crystal and plan with available read/search tools; use a bounded shell probe
+if useful. No separately named artifact-validator tool is required. This direct structural
+check is distinct from judging the plan's semantics or the product's behavior.
+
+Check crystal §1/§2/§3 and mode/depth; preserve §1 and §3. A legacy missing depth means standard.
+Check PLAN `## Execution shape` (SINGLE/UNITS) and `## Files`: one absolute regular-file path
+per `- write:` or `- read:` entry, with backticks when a path contains spaces. New planned write
+files may be absent; directories and wildcards do not grant write scope. Only explicit write
+entries grant product edits. Trivial/standard uses SINGLE; UNITS requires complex depth.
+
+For UNITS require unique contiguous ids, earlier-id dependencies, the planner's complete unit
+fields, exclusive ownership and touchpoints declared in Files. A selected unit must exist and
+may write only its declared subset. PENDING/IN_PROGRESS/STALE/PASSED/BLOCKED are progress metadata,
+never evidence that a gate passed.
+
+Inspect before dependent work and after relevant edits. Fix only artifacts owned by the role;
+return a sourced defect or precise missing prerequisite for other artifacts. State what was
+actually checked, not a fabricated tool response. Semantic criteria still come from original
+requirements; a structurally valid plan may be wrong.
 
 ## Architectural approaches
 
@@ -33,15 +49,15 @@ choice in §2/plan: layered (transport/service/domain/repo) · pipeline stages �
 refactor-isolation (no observable behaviour change). For code edits >10 lines use the `tz` skill
 (TЗ first). The plan never goes beyond crystal §1.
 
-## Reproducible bugs are always in scope
+## Reproduced defects and repair authority
 
-While implementing, ANY bug that can be REPRODUCED (a command, test or scenario that shows the
-wrong behaviour) is fixed immediately — regardless of module, distance from the task, or an "out of
-scope" section in the plan. Out-of-scope is NOT a valid reason to leave it unfixed: (1) search —
-inspect the code around what you modify; (2) reproduce — get a command or test that shows the wrong
-behaviour; (3) fix — in the same diff, never in a TODO and never "next task"; (4) record — name it
-on its own line in the final report and in the bug ledger `~/plans/<crystal-stem>.bugs.md`: what
-was wrong, where, how it was fixed, what reproduces it. Such fixes are NEVER scope-creep and
-reviewers must not reject them as out-of-scope. A bug that could not be reproduced is a hypothesis:
-name it in the report, do not fix it. The only exception is a fix that itself needs a risk-tier
-action (DB migration, prod, security perimeter, destructive op) — confirm with the user first.
+Repair change-caused regressions and defects on the requested outcome's mandatory correctness
+path within explicit ownership and authorization. Reproduce a suspected violation or establish
+it with deciding source evidence, then fix its cause and refresh the relevant observation.
+Report the defect, location and actual check. A hypothesis is not an observed bug.
+
+If the necessary correction crosses the plan's ownership or changes a governing decision,
+return to the appropriate owner before dependent edits. Critic repairs PLAN and derived §2;
+implementation-critic repairs only its product scope. A newly discovered unrelated defect does
+not authorize expansion. Destructive, production or security-sensitive actions obey actual
+user authorization; do not invent permission or re-request consent already granted.

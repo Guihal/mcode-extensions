@@ -1,77 +1,63 @@
-# Verdict grammar — reviewer verdicts
+# Verdict grammar — one JSON contract
 
-Read when a verdict lands and has to be turned into a gate decision.
+Read when a role returns. The installed roles and this skill use a single strict JSON object,
+without Markdown fences, YAML verdicts, phase/additional blocks or sentinel lines.
 
-Every reviewer emits exactly one MD block, last line `<<<VERDICT-END>>>`:
+## Common fields
 
-```md
-ok: <bool>
-phase: <plan|implementation|acceptance>
-feedback: |
-<empty body when ok=true; otherwise one issue per line in [sev]rule-name @location → fix format>
-additional: |
-<optional freeform MD; OMIT this key entirely when empty>
-```
+- `ok`: boolean. True means the role's assigned outcome is established under its mode.
+- `class`: kebab-case string; `none` for success, `blocked` for missing necessary evidence or
+  capability, otherwise a sourced defect class such as `plan-defect` or `behavior-broken`.
+- `feedback`: array of strings. A negative verdict contains at least one `[HARD]` or `[BLOCKED]`
+  entry. HARD identifies source, location/evidence, material consequence and necessary fix;
+  BLOCKED identifies the property, attempted check and missing prerequisite. At most eight
+  blocking entries; combine a shared cause without hiding a material obligation.
+- `repairs`: optional array of `{path, change}` for actual repairs. Empty/absent means none.
+  Reviewers never disguise a repair as an unchanged positive review.
+- `criteria`: required only for product-validator, with the format below.
 
-- `feedback` is empty (or absent) when `ok=true`.
-- Exception — the critic's `additional` is always present. It carries the coverage-annotation
-  block, so it is non-empty by definition, and the critic writes `additional:` **before**
-  `feedback:`. The block's format lives in the role definition, not here. For roles whose
-  `additional` is genuinely empty sometimes (`product-validator`) the rule above stands unchanged.
-- Severity-gated: `medium` / `high` / `critical` block; `low` / nit are dropped. `ok: false`
-  requires at least one `medium`+ issue — a verdict that rejects on nits is malformed.
-- Max 8 feedback lines.
-- Parser grammar `^\[(medium|high|critical)\]([\w-]+)\s+@(.+?)\s+→\s+(.+)$`.
-- An `acceptance` verdict with `ok: true` must carry at least one evidence line in `additional`,
-  and the second field of **every** such line opens with a kind marker:
+Compact actual evidence may appear in positive feedback. Advisory style preferences do not
+block and are omitted. With HARD and BLOCKED findings together use a defect class; otherwise
+an unresolved evidence gap uses blocked. Missing evidence does not prove a product defect.
 
-  ```text
-  - <criterion id> :: run: <command> :: <its actual output>
-  - <criterion id> :: read: <path>:<lines> :: <the quote standing there>
-  - <criterion id> :: sanity: <command> :: <its actual output>
-  ```
+For normal implementation verification, including read-only standalone TASK review, true
+requires no known material defect or required verification gap. Task-cycle review-only is the
+explicit exception: the requested outcome is a review, so a completed inspection can have
+ok true/class none while its feedback describes subject defects. MAIN must report those
+findings and must not interpret that review-only result as product acceptance.
 
-  `read:` is a full-fledged form, equal in standing to `run:` — a task whose result lives in a
-  file is proved by the file, not by an invented command. `sanity:` is the technical run (suite
-  green, file parses, daemon starts): at least one line must be **not** `sanity:`, because a sanity
-  run does not close the acceptance gate.
+## Acceptance criteria
 
-- Never put the sequence `::` (space colon colon space) inside a field of an evidence line: the
-  parser is non-greedy on the second field and the field boundary would move. Inside a quote write
-  `::` without spaces, or cut with `…`.
+Product-validator additionally returns a nonempty `criteria` array. Each item contains:
 
-## Parsing reviewer output
+- `id`: stable descriptive identifier for one essential outcome;
+- `description`: the source-derived property;
+- `result`: `{status: "pass"|"fail"|"unavailable", reason?}`; fail/unavailable requires a
+  concrete nonempty reason;
+- `evidence`: array of concise strings with `[A..E][happy|negative]`, the actual run/read
+  locator and observed result or quote. Evidence levels are defined in the role contract.
 
-Parse the block line by line:
+The validator closes its own list before inspecting the result. A genuine product observation,
+including direct semantic reading when text is the product, establishes a criterion. File
+counts, grep hits or a green suite alone do not. Do not invent runtime criteria for prose.
+Any fail yields ok false and a defect class; otherwise any unavailable yields ok false/class
+blocked; only all pass allows ok true/class none. Required evidence must remain applicable
+after the last relevant change.
 
-1. Read top-level `ok:` (lowercase `true`/`false`) and `phase:` (echoes the phase asked for).
-2. Read the `feedback:` block. It may be **absent**, **present with an empty body** (both mean "no
-   blocking issues"; accept when `ok: true`), or **present with content** — then each non-blank
-   line, after stripping the leading block indent (typically 2 spaces), must match the grammar
-   above. Stop at the next top-level key or EOF.
-3. Read `additional:` if present — freeform MD, no required structure.
-4. If `ok:`, `phase:` or the feedback grammar is missing or invalid, retry the same reviewer once:
+## Parse and route
 
-   ```text
-   RETRY: Previous verdict was not parseable MD. Overwrite VERDICT_FILE with exactly one
-   MD verdict block with top-level keys ok / phase / feedback, plus additional — for a
-   critic verdict additional is mandatory and repeats the same coverage annotation, for
-   other roles include it when non-empty. Last line <<<VERDICT-END>>>.
-   ```
+1. Parse actual JSON; check common field types and acceptance criteria when applicable.
+2. Check consistency of ok/class, required negative findings and per-criterion aggregation.
+   A well-formed object is necessary but does not prove the product claim.
+3. Inspect deciding evidence before consequential reliance. MAIN keeps repair reports and
+   unresolved outcomes locally for routing; never forward verdicts to a fresh reviewer.
+4. If a role crashes, times out or returns malformed JSON/criteria, retry once as a fresh
+   call with the same exact artifact payload. Do not add a suggested verdict. After a second
+   failure report REVIEW_BLOCKED and the observed reason; it is not a passed gate.
+5. A material repair requires a fresh reviewer of the current artifact. No repeat is required
+   for harmless cosmetic changes or unchanged evidence. A successful implementation review
+   is followed by independent product acceptance in full mode.
 
-   Re-spawn the same role; a fresh instance of that role, not a different one.
-5. If the retry also fails, the gate is **not passed**: report `REVIEW_BLOCKED` and stop. An
-   unparseable verdict is a missing verdict — never treat it as approval and never finish the task
-   on it.
-
-## Repair semantics
-
-The verdict is not the whole gate. In this cycle the gate outcome depends on what the reviewer did
-with the artifact:
-
-- the **critic** repairs the plan itself; a rejected plan means the artifact was rewritten and the
-  verdict carries the remaining blocking issues. A plan is not accepted until a critic verdict on
-  the current plan says `ok: true`;
-- the **implementation-critic** repairs the declared product files itself; its verdict reports what
-  it repaired and what still blocks;
-- the **product-validator** never repairs. Its verdict alone decides the acceptance gate.
+No validator service or machine driver is implied by this grammar. MAIN checks and routes
+the actual returned data through available tools. The product-validator never repairs;
+critic owns PLAN and CRYSTAL §2; implementation-critic owns only authorized product files.

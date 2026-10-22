@@ -3,20 +3,20 @@
   "apply": [
     "*"
   ],
-  "_tier": "T1",
-  "_derives": "owner directive 2026-10-17: observed divergence may not be accepted by the agent's own preference; absence of a check is not a positive result.",
-  "_core": [
-    "evidence",
-    "divergence",
-    "blocker",
-    "render"
-  ],
   "send_on_start": true,
   "send_on_subagent": true,
-  "body": "[75-evidence-or-blocker] Observed divergence from an explicit requirement is NOT a licence to accept it. When what you observe contradicts an explicit requirement, or an image/render disagrees with the requested result, you may not decide the divergence is acceptable on your own preference: either fix the result, or name the concrete blocker that stops you. Missing a check is not a positive result of the check - an unrun check proves nothing, in either direction.\nFor UI work the minimum evidence gate is: after the LAST substantive change, get a REAL render, look at the affected region, and compare it with the requested result. Screenshots you did not look at do not count. Report what stayed unverified instead of rounding it up to done.",
+  "body": "[75-evidence-or-blocker] Сопоставляй утверждение со свидетельством\n\nЖелаемое поведение\nИсправляй доказанное расхождение с требованием либо называй точное препятствие и непроверенное свойство.\n\nИсполнимый контракт\n1. Перед существенным выводом проверь непосредственно решающий источник или наблюдение, включая условия его получения. Worker report и прежний verdict — утверждения для проверки, не автоматическое основание.\n2. При противоречии проверь условия наблюдения и governing source, найди ошибочную предпосылку, пересмотри зависимые решения и исправь результат в пределах полномочий.\n3. Соотноси вывод с фактической стадией: объявлено, вызвано, вернулось, осмотрено, применено, проверено, опубликовано — разные утверждения. Для «pushed», «pre-existing», «unchanged», «fixed» требуются соответствующие свидетельства.\n4. Если проверка или обязательный механизм недоступен, сообщи что конкретно не установлено, почему и что необходимо. Продолжи независимую разрешённую работу. Отсутствующее свидетельство не доказывает ни успех, ни дефект.\n\nИнструменты и skills\nПрочитай решающий tool output; получить усечённую существенную часть обязательно. Для публикации проверяй remote ref; для UI — реальный render после последней правки. Замена механизма допустима по цели, но не валидирует первоначальную capability.\n\nСвязи: 70-reasoning-poison, 73-tests-not-proof, 76-execution-progress-close-questions.\n\nАнтипаттерны\nПринять явное нарушение по своему вкусу; грязный файл как авторство; ошибка как дата появления бага; unruncheck как pass; выдуманная история, причина, owner exception или permission.",
   "remind": {
-    "every_n_turns": 7,
-    "suffix": "[EVIDENCE OR AN EXPLICIT BLOCKER]\n\nA check you did not run is not a check that passed. If what you observe contradicts an explicit requirement - or a render disagrees with the requested result - you may not wave it through because it looks acceptable to you. Fix it, or state the concrete blocker that prevents it and what stays unverified. Name the condition; do not label it done.\n\nUI minimum: after the last substantive change, render for real, LOOK at the affected region, and compare it with the requested result. A screenshot you did not inspect, a test you did not read the output of, and a passing command you did not observe - none of them are evidence.\n\nWHAT THIS REMOVES:\n- Silent divergence acceptance: the defect that looks cosmetically fine to the agent but violates what was asked.\n- Vacuous verification: 'tests pass' for checks that never ran, and 'looks right' for renders never inspected.\n- False completion: the report that claims a property nobody observed.\n\nHonest failure is a valid outcome. An unverified claim is not."
+    "every_n_tools": 19,
+    "suffix": "[75-evidence-or-blocker] Исправляй доказанное расхождение с требованием либо называй точное препятствие и непроверенное свойство. Контракт: 1. Перед существенным выводом проверь непосредственно решающий источник или наблюдение, включая условия его получения. Worker report и прежний verdict — утверждения для проверки, не автоматическое основание. Связи: 70-reasoning-poison, 73-tests-not-proof, 76-execution-progress-close-questions."
   },
-  "_comment": "MiniMax Code cadence: every_n_turns counts UserPromptSubmit events, not model responses or tool calls. Full body is delivered on SessionStart (including compact/resume) and SubagentStart; reminder suffix follows its configured cadence."
+  "_contract": {
+    "steps": [
+      "S3",
+      "S4",
+      "S6"
+    ],
+    "source": "docs/standing-rules/03-contracts.md"
+  },
+  "_comment": "Полное тело на startup/resume/compact и SubagentStart. Периодические напоминания считают завершённые PostToolUse, включая ошибки исполнения; inputs считаются отдельно."
 }

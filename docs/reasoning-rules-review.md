@@ -1,6 +1,16 @@
 # Reasoning rules: evidence, decisions and delivery
 
-## Current delivery update — 2026-10-21
+## Current contracts — 2026-10-22
+
+The unified [standing-rule contracts](standing-rules/03-contracts.md) and
+[capability bindings](standing-rules/04-bindings.md) supersede the delivery
+settings and rule wording recorded below. The full body of rule70 now arrives
+on every input and every **second** completed tool-hook event; rule71 uses a
+five-tool reminder. Other reminder intervals are staggered. Full lifecycle
+restoration remains enabled for all fourteen rules. The historical material
+below records earlier observations and checks; it is not a second active policy.
+
+## Historical delivery update — 2026-10-21
 
 The existing engine now supports `remind.every_n_tools` and
 `remind.send_full_rule`. Rule 70 selects its complete current `body` on every

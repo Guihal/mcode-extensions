@@ -251,7 +251,7 @@ test('concurrent sessions keep independent prompt counters across process restar
   for (const session of sessions) assert.equal(JSON.parse(readFileSync(f.counter(session))).turn, 3);
 });
 
-test('shipped full rules reach lifecycle boundaries and every third completed tool receives the exact full poison body', (t) => {
+test('shipped full rules reach lifecycle boundaries with the requested two-tool poison and five-tool prediction cadence', (t) => {
   const f = fixture(t);
   const rules = readdirSync(join(repo, 'rules')).filter((name) => name.endsWith('.json') && !name.startsWith('_'))
     .map((name) => JSON.parse(readFileSync(join(repo, 'rules', name), 'utf8')));
@@ -263,18 +263,29 @@ test('shipped full rules reach lifecycle boundaries and every third completed to
     assert.ok(Buffer.byteLength(out.stdout) < 64 * 1024, 'inside 0.6.12 command stdout budget');
   }
   const poison = rules.find((value) => value.name === '70-reasoning-poison');
+  const operating = rules.find((value) => value.name === '01-operating-principle');
+  const outcome = rules.find((value) => value.name === '71-user-intent-outcome');
+  const verification = rules.find((value) => value.name === '73-tests-not-proof');
+  assert.equal(poison.remind.every_n_tools, 2, 'the requested poison cadence is two completed tools');
+  assert.equal(poison.remind.send_full_rule, true);
+  assert.equal(outcome.remind.every_n_tools, 5, 'the general prediction contract keeps the requested cadence five');
   assert.ok(poison.body.includes('ОБЯЗАТЕЛЬНО СЛЕДУЙ ДОСЛОВНО ЭТОМУ ПРАВИЛУ'));
+  // This sequence is the required observable schedule, not a reimplementation
+  // of the engine's reminder selection. Other rules may share a due event.
+  const expected = ['', poison.body, operating.remind.suffix.trim(), poison.body,
+    outcome.remind.suffix.trim(), `${operating.remind.suffix.trim()}\n\n${poison.body}`,
+    verification.remind.suffix.trim()];
   for (let call = 1; call <= 7; call++) {
     const out = f.call('PostToolUse', { tool_name: 'bash', is_error: call % 2 === 0 });
-    assert.equal(out.text, call % 3 === 0 ? poison.body : '');
+    assert.equal(out.text, expected[call - 1]);
     if (call === 2) {
-      f.call('UserPromptSubmit');
+      assert.ok(f.call('UserPromptSubmit').text.includes(poison.body), 'input delivery does not change the tool counter');
       f.call('SessionStart', { source: 'compact' });
     }
   }
   assert.equal(f.call('PostToolUse', { session_id: 'child', agent_type: 'worker' }).text, '');
-  assert.equal(f.call('PostToolUse', { session_id: 'child', agent_type: 'worker' }).text, '');
   assert.equal(f.call('PostToolUse', { session_id: 'child', agent_type: 'worker' }).text, poison.body);
+  assert.equal(f.call('PostToolUse', { session_id: 'child', agent_type: 'worker' }).text, operating.remind.suffix.trim());
 });
 
 test('concurrent same-session tool completions preserve exact cadence without storing tool content', async (t) => {

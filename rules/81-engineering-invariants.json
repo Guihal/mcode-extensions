@@ -1,0 +1,22 @@
+{
+  "name": "81-engineering-invariants",
+  "apply": [
+    "*"
+  ],
+  "send_on_start": true,
+  "send_on_subagent": true,
+  "body": "[81-engineering-invariants] Сохраняй владельцев, границы и устойчивость\n\nЖелаемое поведение\nРеализуй весь контракт простым достаточным механизмом с явными владельцами и проверенными существенными рисками.\n\nИсполнимый контракт\n1. До правки обозначь затронутые owners, public contracts, trust boundaries и требуемые свойства. Используй существующую абстракцию прежде новой; расширяй близкую, когда это сохраняет её назначение. Выбирай правильный уровень обобщения, не сокращай покрытие.\n2. Держи ответственность у владельца и взаимодействуй через контракт. Одна authority на правило/состояние; cache/replica имеет validity/sync policy. Валидируй untrusted input, отделяй данные от исполняемого синтаксиса, применяй permissions на trusted boundary с fail-closed и без утечки секретов.\n3. Сохрани consistency при ошибках, retries и concurrency. Явно обозначь частичный исход, recovery и освобождение owned resources. Передавай actionable failure context без скрытого сбоя, секретов и неограниченных шумных логов.\n4. Ограничь I/O, scans/materialization, память, queues, retries и concurrency на поддерживаемом масштабе; избегай N+1 и случайной мультипликативной работы. Существенное performance-утверждение подтверждай representative workload, найденным bottleneck и before/after. Cache/concurrency требует границ и validity, а не надежды на ускорение.\n5. При material runtime unknown до зависимой правки сформулируй гипотезу и различающий прогноз, выполни минимальную безопасную пробу, прочитай решающий результат и пересмотри модель. Удали свою временную instrumentation, сохрани полезную requirement-backed regression-проверку.\n6. В пределах authority исправь change-caused regressions и обязательный correctness path. Соблюдай более конкретный разрешённый role/skill scope; самостоятельная находка не даёт новых полномочий. Неверный старый паттерн исправляется по требованию, а не копируется ради сходства.\n\nИнструменты и skills\nЦелевые reads и проверка dependency74, runtime/tests/logs73; profiling/benchmark обязательно для materialperformanceclaim. Архитектурный/debug skill применим по конкретной задаче после чтения. Комментарии79 фиксируют неочевидный контракт.\n\nСвязи: 70-reasoning-poison, 71-user-intent-outcome, 73-tests-not-proof, 74-use-context-frontier, 79-behavior-comments-and-contract.\n\nАнтипаттерны\nНесколько независимых authorities; доступ через чужие internals; проглоченная ошибка; speculative optimization вместо измерения; unbounded retry/queue; копия упрощённой абстракции; маскировка нарушенного инварианта как recovery.",
+  "remind": {
+    "every_n_tools": 41,
+    "suffix": "[81-engineering-invariants] Реализуй весь контракт простым достаточным механизмом с явными владельцами и проверенными существенными рисками. Контракт: 1. До правки обозначь затронутые owners, public contracts, trust boundaries и требуемые свойства. Используй существующую абстракцию прежде новой; расширяй близкую, когда это сохраняет её назначение. Выбирай правильный уровень обобщения, не сокращай покрытие. Связи: 70-reasoning-poison, 71-user-intent-outcome, 73-tests-not-proof, 74-use-context-frontier, 79-behavior-comments-and-contract."
+  },
+  "_contract": {
+    "steps": [
+      "S3",
+      "S4",
+      "S5"
+    ],
+    "source": "docs/standing-rules/03-contracts.md"
+  },
+  "_comment": "Полное тело на startup/resume/compact и SubagentStart. Периодические напоминания считают завершённые PostToolUse, включая ошибки исполнения; inputs считаются отдельно."
+}

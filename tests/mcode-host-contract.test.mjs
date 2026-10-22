@@ -79,6 +79,7 @@ test('published mcode 0.6.12 hook and compaction contract', { skip: !packageRoot
   const rules = readdirSync(join(repo, 'rules')).filter((file) => file.endsWith('.json') && !file.startsWith('_'))
     .map((file) => JSON.parse(readFileSync(join(repo, 'rules', file), 'utf8')));
   const poison = rules.find((rule) => rule.name === '70-reasoning-poison');
+  assert.equal(poison.remind.every_n_tools, 2, 'the native host must deliver the requested two-tool cadence');
   writeFileSync(join(pluginRoot, 'rules', 'child-only.json'), JSON.stringify({
     name: 'child-only', apply: ['worker'], send_on_start: false, send_on_subagent: true,
     body: 'CHILD_ONLY_BODY', remind: {},
@@ -159,6 +160,7 @@ fs.readFileSync = function(file, ...args) {
   });
 
   await t.test('successful, failing and batched tool executions retain results and share the full-body cadence', async () => {
+    let completed = 0;
     for (const isError of [false, true]) {
       const content = [{ type: 'text', text: isError ? 'original failure' : 'original success' },
         { type: 'image', mimeType: 'image/png', data: readFileSync(join(pluginRoot, 'icon.png')).toString('base64') }];
@@ -167,7 +169,7 @@ fs.readFileSync = function(file, ...args) {
         toolCall: { id: `call-${isError}`, name: 'bash' }, args: {}, result, isError,
       } });
       assert.deepEqual(output?.content?.slice(0, content.length) ?? content, content);
-      assert.equal(output?.content?.some(block => block.text?.includes(poison.body)) ?? false, false);
+      assert.equal(output?.content?.some(block => block.text?.includes(poison.body)) ?? false, ++completed % 2 === 0);
       assert.equal(output?.isError, undefined, 'the reminder must not rewrite the tool error flag');
       assert.deepEqual(result, { content, details: { ok: !isError } }, 'original result remains intact');
     }
@@ -266,12 +268,12 @@ process.stdout.write(JSON.stringify({decision: 'block', reason: ${JSON.stringify
     const restored = trace().find((event) => event.source === 'compact' && event.session_id === 'child');
     assert.equal(restored.agent_type, undefined, 'the host omits role identity after compact');
     assert.equal(restored.agent_id, undefined);
-    for (let completed = 1; completed <= 3; completed++) {
+    for (let completed = 1; completed <= 4; completed++) {
       const childTool = await host.afterTool({ input: input('child', 'child-turn'), context: {
         toolCall: { id: `child-tool-${completed}`, name: 'read' }, args: {},
         result: { content: [{ type: 'text', text: 'child result' }] }, isError: false,
       } });
-      assert.equal(childTool?.content?.some(block => block.text?.includes(poison.body)) ?? false, completed === 3);
+      assert.equal(childTool?.content?.some(block => block.text?.includes(poison.body)) ?? false, completed % 2 === 0);
     }
     const delivered = trace().find((event) => event.hook_event_name === 'PostToolUse' && event.session_id === 'child');
     assert.equal(delivered.agent_type, 'worker');
