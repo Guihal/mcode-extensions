@@ -1,7 +1,7 @@
 # Existing MiniMax extension ports: behavior and compatibility
 
-This document describes the four existing packages: `control-task`,
-`agent-state`, `injection-rules` and `probe-hook`. It distinguishes durable
+This document describes the five packages: `control-task`,
+`agent-state`, `injection-rules`, `probe-hook` and `system-status`. It distinguishes durable
 behavior, model guidance and the limits of MiniMax Code's native hook interface.
 Installation and upgrade commands are in the [README](../README.md#install-or-upgrade).
 
@@ -56,6 +56,7 @@ exposing original functions in disposable copies. See the
 | `agent-state` | 0.2.2 | `agent_state_note`, `agent_state_checkpoint` |
 | `injection-rules` | 0.2.2 | Hook delivery; no MCP server |
 | `probe-hook` | 0.1.1 | `probe_echo`, disabled through packaged configuration by default |
+| `system-status` | 0.1.0 | Hook delivery of a local machine snapshot; no MCP server |
 
 ## Why a tool first returns pending
 

@@ -105,7 +105,7 @@ BUN
 
 Then **restart MiniMax Code or use its plugin management to rescan and reload
 these complete roots**. For a separately imported plugin, reimport the complete
-root. Verify the four package versions and start a new session so the expanded
+root. Verify the five package versions and start a new session so the expanded
 hook registrations and role capabilities are loaded. Copying an individual
 script, a role file or a config flag into a running cached plugin does not
 establish that both the hook snapshot and the MCP process were refreshed.
@@ -181,6 +181,7 @@ plugins/<name>/scripts/runtime/*.mjs          included shared runtime (three plu
 | `control-task`    | Complete durable task, revisioned `get` / `set` / `patch`, retained raw input and optional review tracking. |
 | `agent-state`     | Own reusable guides, verified immediate-parent sharing, content freshness and completed-tool reminders. |
 | `probe-hook`      | Packaged default-off diagnostic for hook, MCP and skill loading; enabled logs contain bounded metadata only.  |
+| `system-status`  | Delivers a compact machine snapshot (free RAM and swap, CPU load, docker container counts) and warns under resource pressure. |
 
 ### control-task
 
@@ -384,6 +385,41 @@ attempt requires a host change; there is no supported `PostToolUseFailure` event
 Use the [complete-root upgrade](#install-or-upgrade) above for rule, hook and
 role changes. Copying only new rule JSON into an older running plugin does not
 add its missing event registrations.
+
+### system-status
+
+`system-status` is a hook-only package: no MCP server, no shared runtime
+copies, no user configuration. It reads local machine state and delivers one
+compact context block, the same way `injection-rules` delivers rules.
+
+| Host event | Delivery |
+| --- | --- |
+| `SessionStart` | The snapshot, so the first decision of a session knows the machine state. |
+| `SubagentStart` | The snapshot for the child role, because children do the heavy work. |
+| `UserPromptSubmit` | The snapshot on every new input. |
+| `PostToolUse` | The snapshot on every **fifth** completed tool call, with the teardown reminder. |
+
+Sources are local only: `/proc/meminfo` for free RAM and swap, `/proc/loadavg`
+plus the core count for CPU load, and `docker ps -a --format {{.State}}` for the
+running and total container counts. A missing source degrades to `н/д`; an
+unreadable docker daemon or a missing binary never fails the hook, and a source
+that cannot be read never counts as resource pressure.
+
+Pressure is a documented assumption, because no numeric threshold was given:
+available RAM below 20%, swap above 60% used, or a 1-minute load average above
+the core count. The pressure line asks the agent to postpone heavy builds, long
+test runs and bulk installs; a load average above 70% of the core count is
+reported as elevated load.
+
+The tool-cadence delivery also repeats one teardown reminder: remove test
+containers and stop dev servers that the agent itself started. The durable
+version of that requirement lives in the global `AGENTS.md`.
+
+The delivered text stays under 600 characters. The per-session tool counter
+lives under the plugin data directory; if that state cannot be persisted the
+snapshot is still delivered. Delivery into a live session needs the host to
+reload the hook registrations — a new session, or the plugin rescan described
+in [install or upgrade](#install-or-upgrade).
 
 ### Verification
 

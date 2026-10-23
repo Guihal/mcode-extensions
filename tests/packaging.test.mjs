@@ -8,7 +8,9 @@ import {
   makeFixture, repositoryRoot, runMcp, runHook, postToolPayload, writeNativeSessions,
 } from './helpers/runtime-fixture.mjs';
 
-const pluginNames = ['agent-state', 'control-task', 'injection-rules', 'probe-hook'];
+const pluginNames = ['agent-state', 'control-task', 'injection-rules', 'probe-hook', 'system-status'];
+// Hook-only packages ship no MCP server and no shared runtime copies.
+const hookOnlyPlugins = ['injection-rules', 'system-status'];
 const runtimeModules = ['host.mjs', 'storage.mjs', 'transport.mjs', 'directory.mjs'];
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');
 const readJson = path => JSON.parse(fs.readFileSync(path, 'utf8'));
@@ -31,7 +33,7 @@ function hookScript(root, manifest, event) {
   return inside(root, match[1]);
 }
 
-test('exactly the four original installable roots include current runtime copies and the unchanged probe skill', () => {
+test('exactly the five installable roots include current runtime copies and the unchanged probe skill', () => {
   const directories = fs.readdirSync(join(repositoryRoot, 'plugins'), { withFileTypes: true })
     .filter(entry => entry.isDirectory()).map(entry => entry.name).sort();
   assert.deepEqual(directories, pluginNames);
@@ -51,7 +53,7 @@ test('exactly the four original installable roots include current runtime copies
     assert.equal(manifest.schemaVersion, 1); assert.equal(manifest.name, plugin);
     assert.match(manifest.version, /^\d+\.\d+\.\d+$/);
     for (const path of [...manifest.hooks, ...manifest.mcpServers, ...manifest.skills]) inside(root, path);
-    if (plugin === 'injection-rules') {
+    if (hookOnlyPlugins.includes(plugin)) {
       assert.equal(fs.existsSync(join(root, 'scripts/runtime')), false);
     } else for (const module of runtimeModules) {
       assert.deepEqual(fs.readFileSync(join(root, 'scripts/runtime', module)), fs.readFileSync(join(repositoryRoot, 'runtime', module)), `${plugin}/${module} must equal its canonical source`);
@@ -127,6 +129,24 @@ for (const plugin of pluginNames) test(`standalone copied ${plugin} resolves its
     assert.equal(emitted.code, 0, emitted.stderr);
     if (plugin === 'probe-hook') {
       assert.equal(emitted.stdout, ''); assert.equal(fs.existsSync(fixture.pluginDataDir), false);
+    } else if (plugin === 'system-status') {
+      assert.match(emitted.context, /\[system-status\]/);
+      assert.match(emitted.context, /RAM свободно/);
+      assert.match(emitted.context, /swap свободно/);
+      assert.match(emitted.context, /load \d/);
+      assert.match(emitted.context, /docker: /);
+      assert.ok(emitted.context.length <= 600, `status context stays compact: ${emitted.context.length}`);
+      // The snapshot reaches the agent on every fifth tool result, not on each one.
+      for (let call = 1; call <= 5; call++) {
+        const after = await runHook(hookScript(root, manifest, 'PostToolUse'), {
+          hook_event_name: 'PostToolUse', session_id: sessionId, cwd: fixture.workspaceDir,
+          turn_id: 'packaged-turn', tool_use_id: 'packaged-tool', tool_name: 'bash',
+          tool_input: {}, tool_response: { content: [{ type: 'text', text: 'ok' }] },
+        }, options);
+        assert.equal(after.code, 0, after.stderr);
+        if (call === 5) assert.match(after.context, /уборка: после тестов удали тестовые контейнеры/);
+        else assert.equal(after.context, '');
+      }
     } else {
       const poison = readJson(join(repositoryRoot, 'rules/70-reasoning-poison.json'));
       const operating = readJson(join(repositoryRoot, 'rules/01-operating-principle.json'));
@@ -235,7 +255,7 @@ test('documented complete-root upgrade preserves existing MCP/config/credentials
   for (const plugin of pluginNames) {
     assert.deepEqual(fs.readFileSync(join(fixture.dataDir, 'plugins', plugin, '.minimax-plugin/plugin.json')),
       fs.readFileSync(join(repositoryRoot, 'plugins', plugin, '.minimax-plugin/plugin.json')));
-    if (plugin !== 'injection-rules') for (const module of runtimeModules) {
+    if (!hookOnlyPlugins.includes(plugin)) for (const module of runtimeModules) {
       assert.deepEqual(fs.readFileSync(join(fixture.dataDir, 'plugins', plugin, 'scripts/runtime', module)), fs.readFileSync(join(repositoryRoot, 'runtime', module)));
     }
   }

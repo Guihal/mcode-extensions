@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "name": "system-status",
+  "version": "0.1.0",
+  "description": "Delivers a compact machine snapshot (free RAM and swap, CPU load, docker container counts) into the agent context and warns under resource pressure.",
+  "author": "penis",
+  "icon": "icon.png",
+  "category": "Other",
+  "exampleQueries": [],
+  "apps": [],
+  "mcpServers": [],
+  "skills": [],
+  "hooks": [
+    "hooks/hooks.json"
+  ]
+}
